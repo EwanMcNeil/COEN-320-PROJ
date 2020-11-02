@@ -113,9 +113,9 @@ int main (int argc, char *argv[]) {
 	printf("Thread was created.\n");
 
 
-	printf("Creating the engineSpeed thread.\n");
-	pthread_create(&th2,NULL, &engineSpeed ,NULL);
-	printf("Thread was created.\n");
+	//printf("Creating the engineSpeed thread.\n");
+	pthread_create(&th3,NULL, &engineSpeed ,NULL);
+	//printf("Thread was created.\n");
 
 	/* Hitting Ctrl+C sends a SIGTERM signal to the process. If the
 	 * process receives this signal, it is killed along with all of
@@ -153,7 +153,7 @@ void *fuelConsumption(void *empty)
 
 
 	int count = 0;
-	while (count < 4) {
+	for(;;) {
 		sem_wait(&printMutex);
 		printf ("\n");
 		printf ("updated Fuel\n");
@@ -184,7 +184,7 @@ void *engineSpeed(void *empty){
 
 
 		int count = 0;
-		while (count < 4) {
+		for(;;) {
 			sem_wait(&printMutex);
 			printf ("\n");
 			printf ("updated EngineSpeed\n");
