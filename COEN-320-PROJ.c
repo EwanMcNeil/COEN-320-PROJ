@@ -151,6 +151,7 @@ int main (int argc, char *argv[]) {
 	printf("Creating the consumer producer threads.\n");
 	pthread_create(&th1,NULL, &consumerThread ,NULL);
 	pthread_create(&th2,NULL, &fuelConsumption ,NULL);
+
 	pthread_create(&th3,NULL, &engineSpeed ,NULL);
 
 
@@ -159,6 +160,7 @@ int main (int argc, char *argv[]) {
 	pthread_join(th2, NULL);
 	pthread_join(th3, NULL);
 	 pause();
+
 
 
 
@@ -179,6 +181,7 @@ void *fuelConsumption(void *empty)
 	dummy  = 5;
 	for (;;) {
 
+
 		sem_wait(&fuelFlag);
 		sem_wait(&structAccess);
 		sem_wait(&printMutex);
@@ -197,8 +200,8 @@ void *fuelConsumption(void *empty)
 
 void *engineSpeed(void *empty){
 		for (;;) {
-
 			sem_wait(&engineFlag);
+
 			sem_wait(&printMutex);
 			printf("UPDATING ENGINE.\n");
 			sem_post(&printMutex);
