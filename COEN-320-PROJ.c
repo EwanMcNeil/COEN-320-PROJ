@@ -85,7 +85,7 @@ void *signalHandler(void *);
 
 
 int start_periodic_timer(void *arguments, int flag);
-static void wait_next_activation(sigset_t *sigst);
+
 
 /*VARIBLES AND TIMES NEEDED
 Fuel Consumption 10 ms
@@ -126,7 +126,7 @@ int main (int argc, char *argv[]) {
 	struct arg_struct argsENG;
 	argsENG.sigst = &sigst;
 	argsENG.offset = 10000;
-	argsENG.period = 1500000;
+	argsENG.period = 1000000;
 	argsENG.signalID = SIGUSR2;
 
 
@@ -138,7 +138,7 @@ int main (int argc, char *argv[]) {
 	struct arg_struct argsFUEL;
 	argsFUEL.sigst = &sigst;
 	argsFUEL.offset = 10000;
-	argsFUEL.period = 3000000;
+	argsFUEL.period = 2000000;
 	argsFUEL.signalID = SIGUSR1;
 
 
@@ -148,10 +148,10 @@ int main (int argc, char *argv[]) {
 
 	pthread_create(&timerHandler, NULL, &signalHandler, NULL);
 
-//	printf("Creating the consumer producer threads.\n");
-//	pthread_create(&th1,NULL, &consumerThread ,NULL);
-//	pthread_create(&th2,NULL, &fuelConsumption ,NULL);
-//	pthread_create(&th3,NULL, &engineSpeed ,NULL);
+	printf("Creating the consumer producer threads.\n");
+	pthread_create(&th1,NULL, &consumerThread ,NULL);
+	pthread_create(&th2,NULL, &fuelConsumption ,NULL);
+	pthread_create(&th3,NULL, &engineSpeed ,NULL);
 
 
 	pthread_join(&timerHandler, NULL);
@@ -181,12 +181,13 @@ void *fuelConsumption(void *empty)
 
 		sem_wait(&fuelFlag);
 		sem_wait(&structAccess);
-
+		sem_wait(&printMutex);
+		printf("UPDATING FUEL.\n");
+		sem_post(&printMutex);
 		VALUES.fuelConsumption =VALUES.fuelConsumption + 2.0;
 		sem_post(&structAccess);
 		sem_post(&updateInterupt);
 
-		sem_post(&fuelFlag);
 
 	}
 	return NULL;
@@ -195,25 +196,20 @@ void *fuelConsumption(void *empty)
 
 
 void *engineSpeed(void *empty){
-
-		int count = 0;
 		for (;;) {
 
 			sem_wait(&engineFlag);
 			sem_wait(&printMutex);
-
+			printf("UPDATING ENGINE.\n");
 			sem_post(&printMutex);
 
 			sem_wait(&structAccess);
-			count = count +1;
-			VALUES.engineSpeed = 20*count*.8;
+			VALUES.engineSpeed = VALUES.engineSpeed + 8.0;
 			sem_post(&structAccess);
 
-
-			//wait_next_activation(); //wait for timer expiration
 			sem_post(&updateInterupt);
 
-			sem_post(&engineFlag);
+
 
 		}
 
@@ -235,12 +231,14 @@ void *consumerThread(void *empty)
 			sem_wait(&printMutex);
 			 printf("Fuel Consumption = %lf\n", VALUES.fuelConsumption);
 			 printf("Engine Speed = %lf\n",VALUES.engineSpeed);
-			 printf("engineCoolantTemperature = %lf\n",VALUES.engineCoolantTemperature);
-			 printf("Current Gear =  %lf\n", VALUES.currentGear);
-			 printf("transmissionOilTemperature =  %lf\n", VALUES.transmissionOilTemperature);
-			 printf("Vehicle Speed = %lf\n",VALUES.vehicleSpeed);
-			 printf("Acceleration Speed Longitudinal = %lf\n", VALUES.accelerationSpeedLongitudinal);
-			 printf("Indication of break switch = %lf\n", VALUES.indicationofbreakswitch);
+//			 printf("engineCoolantTemperature = %lf\n",VALUES.engineCoolantTemperature);
+//			 printf("Current Gear =  %lf\n", VALUES.currentGear);
+//			 printf("transmissionOilTemperature =  %lf\n", VALUES.transmissionOilTemperature);
+//			 printf("Vehicle Speed = %lf\n",VALUES.vehicleSpeed);
+//			 printf("Acceleration Speed Longitudinal = %lf\n", VALUES.accelerationSpeedLongitudinal);
+//			 printf("Indication of break switch = %lf\n", VALUES.indicationofbreakswitch);
+			 printf("\n");
+			 printf("\n");
 			 sem_post(&printMutex);
 
 	}
@@ -256,8 +254,6 @@ void *signalHandler(void *empty){
 	for (;;) {
 	sigwaitinfo(&sigst, &info);
 	output = info.__data.__proc.__pdata.__kill.__value;
-	printf("signo= %d\n", output.sival_int);
-
 
 	switch(output.sival_int){
 
