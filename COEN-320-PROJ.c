@@ -97,6 +97,7 @@ void *indicationofbreakswitch(void *);
 
 void *consumerThread(void *);
 void *signalHandler(void *);
+void *producerFunction(void *arguments);
 void initalizeTimers();
 void initalizeProducers();
 
@@ -147,26 +148,12 @@ int main (int argc, char *argv[]) {
 
 	printf("Creating the consumer producer threads.\n");
 	pthread_create(&consumerpThread,NULL, &consumerThread ,NULL);
-	//pthread_create(&th1,NULL, &fuelConsumption ,NULL);
-	//pthread_create(&th2,NULL, &engineSpeed ,NULL);
-	//pthread_create(&th3,NULL, &engineCoolantTemperature, NULL);
-//	pthread_create(&th4,NULL, &fuelConsumption ,NULL);
-//	pthread_create(&th5,NULL, &engineSpeed ,NULL);
-//	pthread_create(&th6,NULL, &engineCoolantTemperature, NULL);
-//	pthread_create(&th7,NULL, &fuelConsumption ,NULL);
-//	pthread_create(&th8,NULL, &engineSpeed ,NULL);
+
 
 
 	pthread_join(&consumerpThread,NULL);
 	pthread_join(&timerHandlerThread, NULL);
-	//pthread_join(th1, NULL);
-	//pthread_join(th2, NULL);
-	//pthread_join(th3, NULL);
-//	pthread_join(th4, NULL);
-//	pthread_join(th5, NULL);
-//	pthread_join(th6, NULL);
-//	pthread_join(th7, NULL);
-//	pthread_join(th8, NULL);
+
 	 pause();
 
 
@@ -195,49 +182,55 @@ void initalizeProducers(){
 
 	pthread_t th1, th2, th3,th4, th5, th6, th7, th8;
 
-	struct producer_struct fuelConsumptionStruct;
-	fuelConsumptionStruct.flag = &fuelFlag;
-	fuelConsumptionStruct.id = 1;
-	pthread_create(&th1,NULL, &fuelConsumption ,&fuelConsumptionStruct);
+	struct producer_struct *fuelConsumptionStruct = (struct producer_struct *)malloc(sizeof(struct producer_struct));
+	fuelConsumptionStruct->flag = &fuelFlag;
+	fuelConsumptionStruct->id = 1;
+	pthread_create(&th1,NULL, &producerFunction ,(void *)fuelConsumptionStruct);
 
-//
-//	struct producer_struct engineCool;
-//	fuelConsumption.flag = &engineCool;
-//	fuelConsumption.id = 2;
-//
-//
-//	struct producer_struct engineSpeed;
-//	fuelConsumption.flag = &engineSpeedFlag;
-//	fuelConsumption.id = 3;
-//
-//
-//	struct producer_struct currentGear;
-//	fuelConsumption.flag = &currentGearFlag;
-//	fuelConsumption.id = 4;
-//
-//
-//	struct producer_struct oilTempFlag;
-//	fuelConsumption.flag = &oilTempFlag;
-//	fuelConsumption.id = 5;
-//
-//
-//	struct producer_struct speedFlag;
-//	fuelConsumption.flag = &speedFlag;
-//	fuelConsumption.id = 6;
-//
-//
-//	struct producer_struct acceleration;
-//	fuelConsumption.flag = &accelerationFlag;
-//	fuelConsumption.id = 7;
-//
-//
-//	struct producer_struct breakFlag;
-//	fuelConsumption.flag = &breakFlag;
-//	fuelConsumption.id = 8;
 
+	struct producer_struct *engineCoolStruct = (struct producer_struct *)malloc(sizeof(struct producer_struct));
+	engineCoolStruct->flag = &engineCoolFlag;
+	engineCoolStruct->id = 2;
+	pthread_create(&th2,NULL, &producerFunction,(void *)engineCoolStruct);
+
+	struct producer_struct *engineSpeed = (struct producer_struct *)malloc(sizeof(struct producer_struct));
+	engineSpeed->flag = &engineSpeedFlag;
+	engineSpeed->id = 3;
+	pthread_create(&th3,NULL, &producerFunction ,(void *)engineSpeed);
+
+	struct producer_struct *currentGear = (struct producer_struct *)malloc(sizeof(struct producer_struct));
+	currentGear->flag = &currentGearFlag;
+	currentGear->id = 4;
+	pthread_create(&th4,NULL, &producerFunction ,(void *)currentGear);
+
+	struct producer_struct *oilTemp = (struct producer_struct *)malloc(sizeof(struct producer_struct));
+	oilTemp->flag = &oilTempFlag;
+	oilTemp->id = 5;
+	pthread_create(&th5,NULL, &producerFunction ,(void *)oilTemp);
+
+	struct producer_struct *speed = (struct producer_struct *)malloc(sizeof(struct producer_struct));
+	speed->flag = &speedFlag;
+	speed->id = 6;
+	pthread_create(&th6,NULL, &producerFunction ,(void *)speed);
+
+	struct producer_struct *acceleration = (struct producer_struct *)malloc(sizeof(struct producer_struct));
+	acceleration->flag = &accelerationFlag;
+	acceleration->id = 7;
+	pthread_create(&th7,NULL, &producerFunction ,(void *)acceleration);
+
+	struct producer_struct *breakStruct = (struct producer_struct *)malloc(sizeof(struct producer_struct));
+	breakStruct->flag = &breakFlag;
+	breakStruct->id = 8;
+	pthread_create(&th8,NULL, &producerFunction ,(void *)breakStruct);
 
 	pthread_join(&th1,NULL);
-
+	pthread_join(&th2,NULL);
+	pthread_join(&th3,NULL);
+	pthread_join(&th4,NULL);
+	pthread_join(&th5,NULL);
+	pthread_join(&th6,NULL);
+	pthread_join(&th7,NULL);
+	pthread_join(&th8,NULL);
 }
 
 void initalizeTimers(){
@@ -306,7 +299,7 @@ void initalizeTimers(){
 		argsBREAKSWITCH.offset = 10000;
 		argsBREAKSWITCH.period = 100000;
 		argsBREAKSWITCH.signalID = 8;
-		start_periodic_timer(&argsBREAKSWITCH,7);
+		start_periodic_timer(&argsBREAKSWITCH,8);
 
 
 }
@@ -314,15 +307,15 @@ void initalizeTimers(){
 
 
 
-void *producerFunction(void *arguments)
+void* producerFunction(void* arguments)
 {
 
 	fprintf(stderr, "PRODUCERFUNCTION");
 
 
-	struct  producer_struct *args = (struct  producer_struct *)arguments;
-	sem_t *flag = args -> flag;
-	int id  = args -> id;
+	struct  producer_struct *args = (struct  producer_struct*)arguments;
+	sem_t *flag = args->flag;
+	int id  = args->id;
 
 	static int cycles = 0;
 	static uint64_t start;
@@ -348,7 +341,7 @@ void *producerFunction(void *arguments)
 		currentSecond = 1000* ((accumulativeMilli)/1000000);
 
 		fprintf(stderr, "current seconds(row) %i \n", currentSecond);
-
+		fprintf(stderr, "ID %i \n", id);
 		}
 		if (cycles > 0) {
 			//fprintf(stderr, "Ave interval between Fuel instances: %f millisecons\n",
@@ -366,14 +359,32 @@ void *producerFunction(void *arguments)
 			break;
 
 			case 2:
-
+				VALUES.engineSpeed = VALUES.engineSpeed + 3;
 			break;
 
 			case 3:
-
+				VALUES.engineCoolantTemperature = VALUES.engineCoolantTemperature + 5;
 			break;
 
+			case 4:
+				VALUES.currentGear =VALUES.currentGear + 1.0;
+			break;
 
+			case 5:
+				VALUES.transmissionOilTemperature = VALUES.transmissionOilTemperature + 3;
+			break;
+
+			case 6:
+				VALUES.vehicleSpeed = VALUES.vehicleSpeed + 5;
+			break;
+
+			case 7:
+				VALUES.accelerationSpeedLongitudinal = VALUES.accelerationSpeedLongitudinal+ 5;
+			break;
+
+			case 8:
+				VALUES.indicationofbreakswitch= VALUES.indicationofbreakswitch+ 5;
+			break;
 			}
 
 
@@ -386,150 +397,6 @@ void *producerFunction(void *arguments)
 	return NULL;
 }
 
-
-
-
-
-void *fuelConsumption(void *empty)
-{
-
-
-
-	static int cycles = 0;
-	static uint64_t start;
-	uint64_t current;
-	struct timespec tv;
-	double accumulativeMilli = 0;
-	int currentSecond = 0;
-
-	if (start == 0) {
-		clock_gettime(CLOCK_MONOTONIC, &tv);
-		start = tv.tv_sec * ONE_THOUSAND + tv.tv_nsec / ONE_MILLION;
-	}
-
-	for (;;) {
-		sem_wait(&fuelFlag);
-
-
-		clock_gettime(CLOCK_MONOTONIC, &tv);
-		current = tv.tv_sec * ONE_THOUSAND + tv.tv_nsec / ONE_MILLION;
-
-		if (cycles > 0) {
-		accumulativeMilli = accumulativeMilli + (double)(current-start)/cycles;
-		currentSecond = 1000* ((accumulativeMilli)/1000000);
-
-		fprintf(stderr, "current seconds(row) %i \n", currentSecond);
-
-		}
-		if (cycles > 0) {
-			//fprintf(stderr, "Ave interval between Fuel instances: %f millisecons\n",
-				//(double)(current-start)/cycles);
-		}
-
-		cycles++;
-		sem_wait(&structAccess);
-		sem_wait(&printMutex);
-		sem_post(&printMutex);
-		VALUES.fuelConsumption =VALUES.fuelConsumption + 2.0;
-		sem_post(&structAccess);
-		sem_post(&updateInterupt);
-
-
-	}
-	return NULL;
-}
-
-
-
-void *engineSpeed(void *empty){
-
-	static int cycles = 0;
-	static uint64_t start;
-	uint64_t current;
-	struct timespec tv;
-
-	if (start == 0) {
-		clock_gettime(CLOCK_MONOTONIC, &tv);
-		start = tv.tv_sec * ONE_THOUSAND + tv.tv_nsec / ONE_MILLION;
-	}
-
-
-
-		for (;;) {
-			sem_wait(&engineSpeedFlag);
-
-
-			clock_gettime(CLOCK_MONOTONIC, &tv);
-			current = tv.tv_sec * ONE_THOUSAND + tv.tv_nsec / ONE_MILLION;
-
-			if (cycles > 0) {
-				//fprintf(stderr, "Ave interval between instances engineSpeed : %f millisecons\n",
-				//	(double)(current-start)/cycles);
-			}
-
-			cycles++;
-			sem_wait(&printMutex);
-
-			sem_post(&printMutex);
-
-			sem_wait(&structAccess);
-			VALUES.engineSpeed = VALUES.engineSpeed + 8.0;
-			sem_post(&structAccess);
-
-			sem_post(&updateInterupt);
-
-
-
-		}
-
-		return NULL;
-
-
-
-}
-
-
-
-
-void *engineCoolantTemperature(void *empty)
-{
-
-
-
-	static int cycles = 0;
-	static uint64_t start;
-	uint64_t current;
-	struct timespec tv;
-
-	if (start == 0) {
-		clock_gettime(CLOCK_MONOTONIC, &tv);
-		start = tv.tv_sec * ONE_THOUSAND + tv.tv_nsec / ONE_MILLION;
-	}
-
-	for (;;) {
-		sem_wait(&engineCoolFlag);
-
-
-		clock_gettime(CLOCK_MONOTONIC, &tv);
-		current = tv.tv_sec * ONE_THOUSAND + tv.tv_nsec / ONE_MILLION;
-
-		if (cycles > 0) {
-			//fprintf(stderr, "Ave interval between Engine coolant instances: %f millisecons\n",
-			//	(double)(current-start)/cycles);
-		}
-
-		cycles++;
-		sem_wait(&structAccess);
-		sem_wait(&printMutex);
-		sem_post(&printMutex);
-		//VALUES.fuelConsumption =VALUES.fuelConsumption + 2.0;
-		sem_post(&structAccess);
-		sem_post(&updateInterupt);
-
-
-	}
-	return NULL;
-}
 
 
 
@@ -543,22 +410,26 @@ void *consumerThread(void *empty)
 	for (;;) {
 		sem_wait(&updateInterupt);
 			sem_wait(&printMutex);
+
 			 printf("Fuel Consumption = %lf\n", VALUES.fuelConsumption);
-//			 printf("Engine Speed = %lf\n",VALUES.engineSpeed);
-////			 printf("engineCoolantTemperature = %lf\n",VALUES.engineCoolantTemperature);
-////			 printf("Current Gear =  %lf\n", VALUES.currentGear);
-////			 printf("transmissionOilTemperature =  %lf\n", VALUES.transmissionOilTemperature);
-////			 printf("Vehicle Speed = %lf\n",VALUES.vehicleSpeed);
-////			 printf("Acceleration Speed Longitudinal = %lf\n", VALUES.accelerationSpeedLongitudinal);
-////			 printf("Indication of break switch = %lf\n", VALUES.indicationofbreakswitch);
-//			 printf("\n");
-//			 printf("\n");
+			 printf("Engine Speed = %lf\n",VALUES.engineSpeed);
+			 printf("engineCoolantTemperature = %lf\n",VALUES.engineCoolantTemperature);
+			 printf("Current Gear =  %lf\n", VALUES.currentGear);
+			 printf("transmissionOilTemperature =  %lf\n", VALUES.transmissionOilTemperature);
+			 printf("Vehicle Speed = %lf\n",VALUES.vehicleSpeed);
+			 printf("Acceleration Speed Longitudinal = %lf\n", VALUES.accelerationSpeedLongitudinal);
+			 printf("Indication of break switch = %lf\n", VALUES.indicationofbreakswitch);
+			 printf("\n");
+			 printf("\n");
 			 sem_post(&printMutex);
 
 	}
 
 	return(NULL);
 }
+
+
+
 
 
 
@@ -583,7 +454,24 @@ void *signalHandler(void *empty){
 		sem_post(&engineCoolFlag);
 	break;
 
+	case 4:
+		sem_post(&currentGearFlag);
+	break;
 
+	case 5:
+		sem_post(&oilTempFlag);
+	break;
+
+	case 6:
+		sem_post(& speedFlag);
+	break;
+
+	case 7:
+		sem_post(&accelerationFlag);
+	break;
+	case 8:
+		sem_post(&breakFlag);
+	break;
 	}
 
 	}
