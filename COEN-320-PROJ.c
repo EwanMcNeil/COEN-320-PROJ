@@ -75,6 +75,11 @@ struct arg_struct {
 };
 
 
+struct producer_struct {
+    sem_t* flag;
+    int id;
+};
+
 sigset_t sigst_Fuel;
 sigset_t sigst_Engine;
 sigset_t sigst;
@@ -93,7 +98,7 @@ void *indicationofbreakswitch(void *);
 void *consumerThread(void *);
 void *signalHandler(void *);
 void initalizeTimers();
-
+void initalizeProducers();
 
 int start_periodic_timer(void *arguments, int flag);
 
@@ -101,7 +106,7 @@ int start_periodic_timer(void *arguments, int flag);
 
 
 int main (int argc, char *argv[]) {
-	pthread_t th1, th2, th3,th4, th5, th6, th7, th8, consumerpThread, timerHandlerThread;
+	pthread_t consumerpThread, timerHandlerThread;
 
 
 	stream = fopen("Driving Data(KIA SOUL)_(150728-160714)_(10 Drivers_A-J).csv", "r");
@@ -136,15 +141,15 @@ int main (int argc, char *argv[]) {
 	sigemptyset(&sigst); // initialize a signal set
 
 	initalizeTimers();
-
+	initalizeProducers();
 
 	pthread_create(&timerHandlerThread, NULL, &signalHandler, NULL);
 
 	printf("Creating the consumer producer threads.\n");
 	pthread_create(&consumerpThread,NULL, &consumerThread ,NULL);
-	pthread_create(&th1,NULL, &fuelConsumption ,NULL);
-	pthread_create(&th2,NULL, &engineSpeed ,NULL);
-	pthread_create(&th3,NULL, &engineCoolantTemperature, NULL);
+	//pthread_create(&th1,NULL, &fuelConsumption ,NULL);
+	//pthread_create(&th2,NULL, &engineSpeed ,NULL);
+	//pthread_create(&th3,NULL, &engineCoolantTemperature, NULL);
 //	pthread_create(&th4,NULL, &fuelConsumption ,NULL);
 //	pthread_create(&th5,NULL, &engineSpeed ,NULL);
 //	pthread_create(&th6,NULL, &engineCoolantTemperature, NULL);
@@ -154,9 +159,9 @@ int main (int argc, char *argv[]) {
 
 	pthread_join(&consumerpThread,NULL);
 	pthread_join(&timerHandlerThread, NULL);
-	pthread_join(th1, NULL);
-	pthread_join(th2, NULL);
-	pthread_join(th3, NULL);
+	//pthread_join(th1, NULL);
+	//pthread_join(th2, NULL);
+	//pthread_join(th3, NULL);
 //	pthread_join(th4, NULL);
 //	pthread_join(th5, NULL);
 //	pthread_join(th6, NULL);
@@ -186,6 +191,54 @@ Acceleration Speed Longitudinal 150 ms
 Indication of break switch 100 ms
 */
 
+void initalizeProducers(){
+
+	pthread_t th1, th2, th3,th4, th5, th6, th7, th8;
+
+	struct producer_struct fuelConsumptionStruct;
+	fuelConsumptionStruct.flag = &fuelFlag;
+	fuelConsumptionStruct.id = 1;
+	pthread_create(&th1,NULL, &fuelConsumption ,&fuelConsumptionStruct);
+
+//
+//	struct producer_struct engineCool;
+//	fuelConsumption.flag = &engineCool;
+//	fuelConsumption.id = 2;
+//
+//
+//	struct producer_struct engineSpeed;
+//	fuelConsumption.flag = &engineSpeedFlag;
+//	fuelConsumption.id = 3;
+//
+//
+//	struct producer_struct currentGear;
+//	fuelConsumption.flag = &currentGearFlag;
+//	fuelConsumption.id = 4;
+//
+//
+//	struct producer_struct oilTempFlag;
+//	fuelConsumption.flag = &oilTempFlag;
+//	fuelConsumption.id = 5;
+//
+//
+//	struct producer_struct speedFlag;
+//	fuelConsumption.flag = &speedFlag;
+//	fuelConsumption.id = 6;
+//
+//
+//	struct producer_struct acceleration;
+//	fuelConsumption.flag = &accelerationFlag;
+//	fuelConsumption.id = 7;
+//
+//
+//	struct producer_struct breakFlag;
+//	fuelConsumption.flag = &breakFlag;
+//	fuelConsumption.id = 8;
+
+
+	pthread_join(&th1,NULL);
+
+}
 
 void initalizeTimers(){
 		//timer for the engine
@@ -258,6 +311,85 @@ void initalizeTimers(){
 
 }
 
+
+
+
+void *producerFunction(void *arguments)
+{
+
+	fprintf(stderr, "PRODUCERFUNCTION");
+
+
+	struct  producer_struct *args = (struct  producer_struct *)arguments;
+	sem_t *flag = args -> flag;
+	int id  = args -> id;
+
+	static int cycles = 0;
+	static uint64_t start;
+	uint64_t current;
+	struct timespec tv;
+	double accumulativeMilli = 0;
+	int currentSecond = 0;
+
+	if (start == 0) {
+		clock_gettime(CLOCK_MONOTONIC, &tv);
+		start = tv.tv_sec * ONE_THOUSAND + tv.tv_nsec / ONE_MILLION;
+	}
+
+	for (;;) {
+		sem_wait(flag);
+
+
+		clock_gettime(CLOCK_MONOTONIC, &tv);
+		current = tv.tv_sec * ONE_THOUSAND + tv.tv_nsec / ONE_MILLION;
+
+		if (cycles > 0) {
+		accumulativeMilli = accumulativeMilli + (double)(current-start)/cycles;
+		currentSecond = 1000* ((accumulativeMilli)/1000000);
+
+		fprintf(stderr, "current seconds(row) %i \n", currentSecond);
+
+		}
+		if (cycles > 0) {
+			//fprintf(stderr, "Ave interval between Fuel instances: %f millisecons\n",
+				//(double)(current-start)/cycles);
+		}
+
+		cycles++;
+		sem_wait(&structAccess);
+		sem_wait(&printMutex);
+
+		switch(id){
+
+			case 1:
+				VALUES.fuelConsumption =VALUES.fuelConsumption + 1.0;
+			break;
+
+			case 2:
+
+			break;
+
+			case 3:
+
+			break;
+
+
+			}
+
+
+		sem_post(&printMutex);
+		sem_post(&structAccess);
+		sem_post(&updateInterupt);
+
+
+	}
+	return NULL;
+}
+
+
+
+
+
 void *fuelConsumption(void *empty)
 {
 
@@ -267,7 +399,7 @@ void *fuelConsumption(void *empty)
 	static uint64_t start;
 	uint64_t current;
 	struct timespec tv;
-	uint64_t accumulativeMilli = 0;
+	double accumulativeMilli = 0;
 	int currentSecond = 0;
 
 	if (start == 0) {
@@ -281,12 +413,14 @@ void *fuelConsumption(void *empty)
 
 		clock_gettime(CLOCK_MONOTONIC, &tv);
 		current = tv.tv_sec * ONE_THOUSAND + tv.tv_nsec / ONE_MILLION;
-		accumulativeMilli = accumulativeMilli + current;
-		currentSecond = 1000* ((double)accumulativeMilli/1000);
 
+		if (cycles > 0) {
+		accumulativeMilli = accumulativeMilli + (double)(current-start)/cycles;
+		currentSecond = 1000* ((accumulativeMilli)/1000000);
 
-		//round current to the lower second to get the line in the CSV we want
-		fprintf(stderr, "current seconds(row) %f \n", currentSecond);
+		fprintf(stderr, "current seconds(row) %i \n", currentSecond);
+
+		}
 		if (cycles > 0) {
 			//fprintf(stderr, "Ave interval between Fuel instances: %f millisecons\n",
 				//(double)(current-start)/cycles);
@@ -403,24 +537,13 @@ void *engineCoolantTemperature(void *empty)
 
 
 
-
-
-//void *currentGear(void *);
-//void *transmissionOilTemperature(void *);
-//void *vehicleSpeed(void *);
-//void *accelerationSpeedLongitudinal(void *);
-//void *indicationofbreakswitch(void *);
-
-
-
-
 void *consumerThread(void *empty)
 {
 
 	for (;;) {
 		sem_wait(&updateInterupt);
 			sem_wait(&printMutex);
-//			 printf("Fuel Consumption = %lf\n", VALUES.fuelConsumption);
+			 printf("Fuel Consumption = %lf\n", VALUES.fuelConsumption);
 //			 printf("Engine Speed = %lf\n",VALUES.engineSpeed);
 ////			 printf("engineCoolantTemperature = %lf\n",VALUES.engineCoolantTemperature);
 ////			 printf("Current Gear =  %lf\n", VALUES.currentGear);
