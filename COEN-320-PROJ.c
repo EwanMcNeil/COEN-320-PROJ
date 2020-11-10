@@ -29,7 +29,6 @@
 #define OFFSET 1000000
 #define PERIOD 5000000
 
-sigset_t sigst;
 
 sem_t valueMutex;
 
@@ -53,6 +52,25 @@ sem_t printMutex;
 sem_t structAccess;
 
 
+sem_t sigWait;
+
+sem_t fuelFlag;
+sem_t engineFlag;
+
+struct arg_struct {
+    sigset_t *sigst;
+    uint64_t offset;
+    int period;
+    int signalID;
+};
+
+
+sigset_t sigst_Fuel;
+sigset_t sigst_Engine;
+sigset_t sigst;
+
+
+
 void *fuelConsumption(void *);
 void *engineSpeed(void *);
 void *engineCoolantTemperature(void *);
@@ -63,11 +81,11 @@ void *accelerationSpeedLongitudinal(void *);
 void *indicationofbreakswitch(void *);
 
 void *consumerThread(void *);
+void *signalHandler(void *);
 
 
+int start_periodic_timer(void *arguments, int flag);
 
-int start_periodic_timer(uint64_t offset, int period);
-static void wait_next_activation(void);
 
 /*VARIBLES AND TIMES NEEDED
 Fuel Consumption 10 ms
@@ -82,7 +100,7 @@ Indication of break switch 100 ms
 
 
 int main (int argc, char *argv[]) {
-	pthread_t th1, th2, th3;
+	pthread_t th1, th2, th3, timerHandler;
 
 	VALUES.fuelConsumption = 2.0;
 	VALUES.engineSpeed = 0.0;
@@ -93,50 +111,58 @@ int main (int argc, char *argv[]) {
 	VALUES.accelerationSpeedLongitudinal = 0.0;
 	VALUES.indicationofbreakswitch = 0.0;
 
-
-
-
-	//not sure of differences between threads
-	//and processes here
 	sem_init(&structAccess, 0, 1);
 	sem_init(&valueMutex, 0, 1);
 	sem_init(&updateInterupt, 0, 0);
 	sem_init(&printMutex,0,1);
+	sem_init(&sigWait,0,1);
 
-	printf("Creating the consumer thread.\n");
+	sem_init(&fuelFlag,0,1);
+	sem_init(&engineFlag,0,1);
+
+	sigemptyset(&sigst); // initialize a signal set
+
+
+	struct arg_struct argsENG;
+	argsENG.sigst = &sigst;
+	argsENG.offset = 10000;
+	argsENG.period = 1000000;
+	argsENG.signalID = SIGUSR2;
+
+
+
+	start_periodic_timer(&argsENG,1);
+
+
+	//pthread_t timeThreadFUEL;
+	struct arg_struct argsFUEL;
+	argsFUEL.sigst = &sigst;
+	argsFUEL.offset = 10000;
+	argsFUEL.period = 2000000;
+	argsFUEL.signalID = SIGUSR1;
+
+
+
+	start_periodic_timer(&argsFUEL,2);
+
+
+	pthread_create(&timerHandler, NULL, &signalHandler, NULL);
+
+	printf("Creating the consumer producer threads.\n");
 	pthread_create(&th1,NULL, &consumerThread ,NULL);
-	printf("Thread was created.\n");
-
-
-	printf("Creating the FuelThread thread.\n");
 	pthread_create(&th2,NULL, &fuelConsumption ,NULL);
-	printf("Thread was created.\n");
 
-
-	//printf("Creating the engineSpeed thread.\n");
 	pthread_create(&th3,NULL, &engineSpeed ,NULL);
-	//printf("Thread was created.\n");
 
-	/* Hitting Ctrl+C sends a SIGTERM signal to the process. If the
-	 * process receives this signal, it is killed along with all of
-	 * its threads. We now use the pause() function to wait for
-	 * the signal.
-	 *
-	 *
-	 *
-	 */
 
-	 pthread_join(th1, NULL);
-	 pthread_join(th2, NULL);
-	 pthread_join(th3, NULL);
-	 	pause();
+	pthread_join(&timerHandler, NULL);
+	pthread_join(th1, NULL);
+	pthread_join(th2, NULL);
+	pthread_join(th3, NULL);
+	 pause();
 
-	/* Hitting Ctrl+C will end the whole program, thus any lines
-	 * after the pause() and the } will not be executed.
-	 * If you want the main thread exit after the others threads
-	 * finished, use pthread_join() as shown above.
-	 * Have fun while exploring!
-	 */
+
+
 
 		return EXIT_SUCCESS;
 
@@ -151,64 +177,48 @@ int main (int argc, char *argv[]) {
 void *fuelConsumption(void *empty)
 {
 
+	int dummy;
+	dummy  = 5;
+	for (;;) {
 
-	int count = 0;
-	for(;;) {
-		sem_wait(&printMutex);
-		printf ("\n");
-		printf ("updated Fuel\n");
-		sem_post(&printMutex);
 
+		sem_wait(&fuelFlag);
 		sem_wait(&structAccess);
-		count = count +1;
-		VALUES.fuelConsumption = 2.0+count;
+		sem_wait(&printMutex);
+		printf("UPDATING FUEL.\n");
+		sem_post(&printMutex);
+		VALUES.fuelConsumption =VALUES.fuelConsumption + 2.0;
 		sem_post(&structAccess);
-
-
 		sem_post(&updateInterupt);
 
 
-		//using sleep instead of timer for the current
-		//moment
-		sleep(1);
-
-
 	}
-
 	return NULL;
 }
 
 
 
 void *engineSpeed(void *empty){
+		for (;;) {
+			sem_wait(&engineFlag);
 
-
-		int count = 0;
-		for(;;) {
 			sem_wait(&printMutex);
-			printf ("\n");
-			printf ("updated EngineSpeed\n");
-			printf ("\n");
+			printf("UPDATING ENGINE.\n");
 			sem_post(&printMutex);
 
 			sem_wait(&structAccess);
-			count = count +1;
-			VALUES.engineSpeed = 20*count*.8;
+			VALUES.engineSpeed = VALUES.engineSpeed + 8.0;
 			sem_post(&structAccess);
 
-
-			//wait_next_activation(); //wait for timer expiration
 			sem_post(&updateInterupt);
 
-
-			//using sleep instead of timer for the current
-			//moment
-			sleep(1);
 
 
 		}
 
 		return NULL;
+
+
 
 }
 
@@ -218,17 +228,20 @@ void *engineSpeed(void *empty){
 
 void *consumerThread(void *empty)
 {
+
 	for (;;) {
 		sem_wait(&updateInterupt);
 			sem_wait(&printMutex);
 			 printf("Fuel Consumption = %lf\n", VALUES.fuelConsumption);
 			 printf("Engine Speed = %lf\n",VALUES.engineSpeed);
-			 printf("engineCoolantTemperature = %lf\n",VALUES.engineCoolantTemperature);
-			 printf("Current Gear =  %lf\n", VALUES.currentGear);
-			 printf("transmissionOilTemperature =  %lf\n", VALUES.transmissionOilTemperature);
-			 printf("Vehicle Speed = %lf\n",VALUES.vehicleSpeed);
-			 printf("Acceleration Speed Longitudinal = %lf\n", VALUES.accelerationSpeedLongitudinal);
-			 printf("Indication of break switch = %lf\n", VALUES.indicationofbreakswitch);
+//			 printf("engineCoolantTemperature = %lf\n",VALUES.engineCoolantTemperature);
+//			 printf("Current Gear =  %lf\n", VALUES.currentGear);
+//			 printf("transmissionOilTemperature =  %lf\n", VALUES.transmissionOilTemperature);
+//			 printf("Vehicle Speed = %lf\n",VALUES.vehicleSpeed);
+//			 printf("Acceleration Speed Longitudinal = %lf\n", VALUES.accelerationSpeedLongitudinal);
+//			 printf("Indication of break switch = %lf\n", VALUES.indicationofbreakswitch);
+			 printf("\n");
+			 printf("\n");
 			 sem_post(&printMutex);
 
 	}
@@ -238,50 +251,29 @@ void *consumerThread(void *empty)
 
 
 
+void *signalHandler(void *empty){
+	siginfo_t info;
+	union sigval output;
+	for (;;) {
+	sigwaitinfo(&sigst, &info);
+	output = info.__data.__proc.__pdata.__kill.__value;
 
-//Timer code
-static void wait_next_activation(void) {
-	int dummy;
-	/* suspend calling process until a signal is pending */
-	sigwait(&sigst, &dummy);
-}
+	switch(output.sival_int){
 
-int start_periodic_timer(uint64_t offset, int period) {
-	struct itimerspec timer_spec;
-	struct sigevent sigev;
-	timer_t timer;
-	const int signal = SIGALRM;
-	int res;
+	case 1:
+		sem_post(&fuelFlag);
+	break;
 
-	/* set timer parameters */
-	timer_spec.it_value.tv_sec = offset / ONE_MILLION;
-	timer_spec.it_value.tv_nsec = (offset % ONE_MILLION) * ONE_THOUSAND;
-	timer_spec.it_interval.tv_sec = period / ONE_MILLION;
-	timer_spec.it_interval.tv_nsec = (period % ONE_MILLION) * ONE_THOUSAND;
+	case 2:
+		sem_post(&engineFlag);
+	break;
 
-	sigemptyset(&sigst); // initialize a signal set
-	sigaddset(&sigst, signal); // add SIGALRM to the signal set
-	sigprocmask(SIG_BLOCK, &sigst, NULL); //block the signal
 
-	/* set the signal event a timer expiration */
-	memset(&sigev, 0, sizeof(struct sigevent));
-	sigev.sigev_notify = SIGEV_SIGNAL;
-	sigev.sigev_signo = signal;
-
-	/* create timer */
-	res = timer_create(CLOCK_MONOTONIC, &sigev, &timer);
-
-	if (res < 0) {
-
-		printf("timer end /n");
-		perror("Timer Create");
-		exit(-1);
 	}
 
-
-	/* activate the timer */
-	return timer_settime(timer, 0, &timer_spec, NULL);
+	}
 }
+
 
 
 const char* getfield(char* line, int num)
@@ -297,6 +289,62 @@ const char* getfield(char* line, int num)
     }
     return NULL;
 }
+
+
+
+
+
+
+int start_periodic_timer(void *arguments, int flag){
+	printf("Entered start\n");
+	struct arg_struct *args = (struct arg_struct *)arguments;
+	sigset_t *sigst = args -> sigst;
+	uint64_t offset = args -> offset;
+	int period = args -> period;
+	int signalID = args -> signalID;
+
+
+	struct itimerspec timer_spec;
+	struct sigevent sigev;
+	timer_t timer;
+	static int timerCount = 1;
+	int signal = signalID;
+	int res;
+	printf("ARG PERIOD.\n");
+
+
+	/* set timer parameters */
+	timer_spec.it_value.tv_sec = offset / ONE_MILLION;			///starting time
+	timer_spec.it_value.tv_nsec = (offset % ONE_MILLION) * ONE_THOUSAND;
+	timer_spec.it_interval.tv_sec = period / ONE_MILLION;
+	timer_spec.it_interval.tv_nsec = (period % ONE_MILLION) * ONE_THOUSAND;		//period
+
+
+	sigaddset(sigst, signal); // add SIGALRM to the signal set
+	sigprocmask(SIG_BLOCK, sigst, NULL); //block the signal
+	printf("initalized timer.\n");
+	/* set the signal event a timer expiration */
+	memset(&sigev, 0, sizeof(struct sigevent));
+	sigev.sigev_notify = SIGEV_SIGNAL;
+	sigev.sigev_signo = signal;
+	union sigval ewanVal;
+	ewanVal.sival_int = flag;
+	sigev.sigev_value = ewanVal;
+
+	/* create timer */
+	res = timer_create(CLOCK_MONOTONIC, &sigev, &timer);
+
+	if (res < 0) {
+		perror("Timer Create");
+		exit(-1);
+	}
+
+	timerCount++;
+	/* activate the timer */
+	printf("Activate.\n");
+	return timer_settime(timer, 0, &timer_spec, NULL);
+}
+
 
 
 
