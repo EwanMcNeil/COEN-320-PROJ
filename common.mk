@@ -7,7 +7,14 @@ QCONFIG=qconfig.mk
 endif
 include $(QCONFIG)
 
+#===== USEFILE - the file containing the usage message for the application. 
 USEFILE=
+
+#===== EXTRA_SRCVPATH - a space-separated list of directories to search for source files.
+EXTRA_SRCVPATH+=$(PROJECT_ROOT)
+
+#===== EXTRA_INCVPATH - a space-separated list of directories to search for include files.
+EXTRA_INCVPATH+=$(PROJECT_ROOT)
 
 include $(MKFILES_ROOT)/qmacros.mk
 ifndef QNX_INTERNAL
@@ -16,5 +23,7 @@ endif
 include $(QNX_INTERNAL)
 
 include $(MKFILES_ROOT)/qtargets.mk
+
 OPTIMIZE_TYPE_g=none
 OPTIMIZE_TYPE=$(OPTIMIZE_TYPE_$(filter g, $(VARIANTS)))
+

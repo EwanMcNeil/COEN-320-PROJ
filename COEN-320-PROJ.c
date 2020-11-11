@@ -101,6 +101,8 @@ void *producerFunction(void *arguments);
 void initalizeTimers();
 void initalizeProducers();
 
+const char* getConsumerValue(char* line, int num);
+
 int start_periodic_timer(void *arguments, int flag);
 
 
@@ -109,8 +111,6 @@ int start_periodic_timer(void *arguments, int flag);
 int main (int argc, char *argv[]) {
 	pthread_t consumerpThread, timerHandlerThread;
 
-
-	stream = fopen("Driving Data(KIA SOUL)_(150728-160714)_(10 Drivers_A-J).csv", "r");
 
 	VALUES.fuelConsumption = 0.0;
 	VALUES.engineSpeed = 0.0;
@@ -309,6 +309,35 @@ void initalizeTimers(){
 
 void* producerFunction(void* arguments)
 {
+	//Reading file independently from 8 different positions
+	FILE* Fuel_Consumer = fopen("/home/DrivingKIA.csv", "r");
+	char Fuel_Consumer_Buffer[1024];
+	FILE* Engine_Speed = fopen("/home/DrivingKIA.csv", "r");
+	char Engine_Speed_Buffer[1024];
+	FILE* Engine_Coolant = fopen("/home/DrivingKIA.csv", "r");
+	char Engine_Coolant_Temperature_Buffer[1024];
+	FILE* Current_Gear = fopen("/home/DrivingKIA.csv", "r");
+	char Current_Gear_Buffer[1024];
+	FILE* Transmission_Oil_Temperature = fopen("/home/DrivingKIA.csv", "r");
+	char Transmission_Oil_Temperature_Buffer[1024];
+	FILE* Vehicle_Speed = fopen("/home/DrivingKIA.csv", "r");
+	char Vehicle_Speed_Buffer[1024];
+	FILE* Acceleration_Speed_Longitudinal = fopen("/home/DrivingKIA.csv", "r");
+	char Acceleration_Speed_Longitudinal_Buffer[1024];
+	FILE* Indication_of_Break_Switch = fopen("/home/DrivingKIA.csv", "r");
+	char Indication_of_Break_Switch_Buffer[1024];
+
+
+	//Read line 1 (Title line)
+	fgets(Fuel_Consumer_Buffer, 1024, Fuel_Consumer);
+	fgets(Engine_Speed_Buffer, 1024, Engine_Speed);
+	fgets(Engine_Coolant_Temperature_Buffer, 1024, Engine_Coolant);
+	fgets(Current_Gear_Buffer, 1024, Current_Gear);
+	fgets(Transmission_Oil_Temperature_Buffer, 1024, Transmission_Oil_Temperature);
+	fgets(Vehicle_Speed_Buffer, 1024, Vehicle_Speed);
+	fgets(Acceleration_Speed_Longitudinal_Buffer, 1024, Acceleration_Speed_Longitudinal);
+	fgets(Indication_of_Break_Switch_Buffer, 1024, Indication_of_Break_Switch);
+
 
 	fprintf(stderr, "PRODUCERFUNCTION");
 
@@ -355,11 +384,17 @@ void* producerFunction(void* arguments)
 		switch(id){
 
 			case 1:
-				VALUES.fuelConsumption =VALUES.fuelConsumption + 1.0;
+				fgets(Fuel_Consumer_Buffer, 1024, Fuel_Consumer);
+				char* tmp = strdup(Fuel_Consumer_Buffer);
+				VALUES.fuelConsumption = atoi(getConsumerValue(tmp, 1));
+				free(tmp);
 			break;
 
 			case 2:
-				VALUES.engineSpeed = VALUES.engineSpeed + 3;
+				fgets(Engine_Speed_Buffer, 1024, Engine_Speed );
+				char* tmp2 = strdup(Engine_Speed_Buffer);
+				VALUES.engineSpeed = atoi(getConsumerValue(tmp2, 13));
+				free(tmp2);
 			break;
 
 			case 3:
@@ -410,7 +445,7 @@ void *consumerThread(void *empty)
 	for (;;) {
 		sem_wait(&updateInterupt);
 			sem_wait(&printMutex);
-
+			 printf("Fuel Consumption Debug__________= %lf\n", VALUES.fuelConsumption);
 			 printf("Fuel Consumption = %lf\n", VALUES.fuelConsumption);
 			 printf("Engine Speed = %lf\n",VALUES.engineSpeed);
 			 printf("engineCoolantTemperature = %lf\n",VALUES.engineCoolantTemperature);
@@ -424,6 +459,8 @@ void *consumerThread(void *empty)
 			 sem_post(&printMutex);
 
 	}
+
+
 
 	return(NULL);
 }
@@ -478,8 +515,8 @@ void *signalHandler(void *empty){
 }
 
 
-
-const char* getfield(char* line, int num)
+//Read the CSV file
+const char* getConsumerValue(char* line, int num)
 {
     const char* tok;
 
