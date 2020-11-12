@@ -64,6 +64,8 @@ sem_t accelerationFlag;
 sem_t breakFlag;
 
 
+FILE* consumer;
+char consumer_Buffer[1024];
 
 
 
@@ -80,10 +82,19 @@ struct producer_struct {
     int id;
 };
 
+
+typedef struct {
+  int *array;
+  size_t used;
+  size_t size;
+} Array;
+
+
+
 sigset_t sigst_Fuel;
 sigset_t sigst_Engine;
 sigset_t sigst;
-FILE* stream;
+
 
 
 void *fuelConsumption(void *);
@@ -101,14 +112,45 @@ void *producerFunction(void *arguments);
 void initalizeTimers();
 void initalizeProducers();
 
-const char* getConsumerValue(char* line, int num);
+const char* fetchValue(const char* line);
+void getConsumerValue (const char* line, int producerThreadID);
+
+void initArray(Array *a, size_t initialSize);
+void insertArray(Array *a, int element);
+void freeArray(Array *a);
+
 
 int start_periodic_timer(void *arguments, int flag);
 
 
+//Create Array List
+Array fuelConsumption_Array;
+Array engineSpeed_Array;
+Array engineCoolantTemperature_Array;
+Array currentGear_Array;
+Array transmissionOilTemperature_Array;
+Array vehicleSpeed_Array;
+Array accelerationSpeedLongitudinal_Array;
+Array indicationofbreakswitch_Array;
+
+int fuelConsumption_RequestCounter = 0;
+int engineSpeed_RequestCounter = 0;
+int engineCoolantTemperature_RequestCounter = 0;
+int currentGear_RequestCounter = 0;
+int transmissionOilTemperature_RequestCounter = 0;
+int vehicleSpeed_RequestCounter = 0;
+int accelerationSpeedLongitudinal_RequestCounter = 0;
+int indicationofbreakswitch_RequestCounter = 0;
+
+int leadingCycle = 0;
 
 
 int main (int argc, char *argv[]) {
+
+	//Open file and Read line 1 (Title line)
+	consumer = fopen("/home/DrivingKIA.csv", "r");
+	fgets(consumer_Buffer, 1024, consumer);
+
 	pthread_t consumerpThread, timerHandlerThread;
 
 
@@ -120,6 +162,18 @@ int main (int argc, char *argv[]) {
 	VALUES.vehicleSpeed = 0.0;
 	VALUES.accelerationSpeedLongitudinal = 0.0;
 	VALUES.indicationofbreakswitch = 0.0;
+
+
+	//Initialize Array Lists (initial size of each: 100)
+	insertArray(&fuelConsumption_Array, 100);
+	insertArray(&engineSpeed_Array, 100);
+	insertArray(&engineCoolantTemperature_Array, 100);
+	insertArray(&currentGear_Array, 100);
+	insertArray(&transmissionOilTemperature_Array, 100);
+	insertArray(&vehicleSpeed_Array, 100);
+	insertArray(&accelerationSpeedLongitudinal_Array, 100);
+	insertArray(&indicationofbreakswitch_Array, 100);
+
 
 	sem_init(&structAccess, 0, 1);
 	sem_init(&valueMutex, 0, 1);
@@ -154,12 +208,20 @@ int main (int argc, char *argv[]) {
 	pthread_join(&consumerpThread,NULL);
 	pthread_join(&timerHandlerThread, NULL);
 
-	 pause();
+	pause();
 
 
 
+	freeArray(&fuelConsumption_Array);
+	freeArray(&engineSpeed_Array);
+	freeArray(&engineCoolantTemperature_Array);
+	freeArray(&currentGear_Array);
+	freeArray(&transmissionOilTemperature_Array);
+	freeArray(&vehicleSpeed_Array);
+	freeArray(&accelerationSpeedLongitudinal_Array);
+	freeArray(&indicationofbreakswitch_Array);
 
-		return EXIT_SUCCESS;
+	return EXIT_SUCCESS;
 
 
 }
@@ -309,36 +371,6 @@ void initalizeTimers(){
 
 void* producerFunction(void* arguments)
 {
-	//Reading file independently from 8 different positions
-	FILE* Fuel_Consumer = fopen("/home/DrivingKIA.csv", "r");
-	char Fuel_Consumer_Buffer[1024];
-	FILE* Engine_Speed = fopen("/home/DrivingKIA.csv", "r");
-	char Engine_Speed_Buffer[1024];
-	FILE* Engine_Coolant = fopen("/home/DrivingKIA.csv", "r");
-	char Engine_Coolant_Temperature_Buffer[1024];
-	FILE* Current_Gear = fopen("/home/DrivingKIA.csv", "r");
-	char Current_Gear_Buffer[1024];
-	FILE* Transmission_Oil_Temperature = fopen("/home/DrivingKIA.csv", "r");
-	char Transmission_Oil_Temperature_Buffer[1024];
-	FILE* Vehicle_Speed = fopen("/home/DrivingKIA.csv", "r");
-	char Vehicle_Speed_Buffer[1024];
-	FILE* Acceleration_Speed_Longitudinal = fopen("/home/DrivingKIA.csv", "r");
-	char Acceleration_Speed_Longitudinal_Buffer[1024];
-	FILE* Indication_of_Break_Switch = fopen("/home/DrivingKIA.csv", "r");
-	char Indication_of_Break_Switch_Buffer[1024];
-
-
-	//Read line 1 (Title line)
-	fgets(Fuel_Consumer_Buffer, 1024, Fuel_Consumer);
-	fgets(Engine_Speed_Buffer, 1024, Engine_Speed);
-	fgets(Engine_Coolant_Temperature_Buffer, 1024, Engine_Coolant);
-	fgets(Current_Gear_Buffer, 1024, Current_Gear);
-	fgets(Transmission_Oil_Temperature_Buffer, 1024, Transmission_Oil_Temperature);
-	fgets(Vehicle_Speed_Buffer, 1024, Vehicle_Speed);
-	fgets(Acceleration_Speed_Longitudinal_Buffer, 1024, Acceleration_Speed_Longitudinal);
-	fgets(Indication_of_Break_Switch_Buffer, 1024, Indication_of_Break_Switch);
-
-
 	fprintf(stderr, "PRODUCERFUNCTION");
 
 
@@ -384,41 +416,35 @@ void* producerFunction(void* arguments)
 		switch(id){
 
 			case 1:
-				fgets(Fuel_Consumer_Buffer, 1024, Fuel_Consumer);
-				char* tmp = strdup(Fuel_Consumer_Buffer);
-				VALUES.fuelConsumption = atoi(getConsumerValue(tmp, 1));
-				free(tmp);
+				getConsumerValue(consumer_Buffer, 1);
 			break;
 
 			case 2:
-				fgets(Engine_Speed_Buffer, 1024, Engine_Speed );
-				char* tmp2 = strdup(Engine_Speed_Buffer);
-				VALUES.engineSpeed = atoi(getConsumerValue(tmp2, 13));
-				free(tmp2);
+				getConsumerValue(consumer_Buffer, 2);
 			break;
 
 			case 3:
-				VALUES.engineCoolantTemperature = VALUES.engineCoolantTemperature + 5;
+				getConsumerValue(consumer_Buffer, 3);
 			break;
 
 			case 4:
-				VALUES.currentGear =VALUES.currentGear + 1.0;
+				getConsumerValue(consumer_Buffer, 4);
 			break;
 
 			case 5:
-				VALUES.transmissionOilTemperature = VALUES.transmissionOilTemperature + 3;
+				getConsumerValue(consumer_Buffer, 5);
 			break;
 
 			case 6:
-				VALUES.vehicleSpeed = VALUES.vehicleSpeed + 5;
+				getConsumerValue(consumer_Buffer, 6);
 			break;
 
 			case 7:
-				VALUES.accelerationSpeedLongitudinal = VALUES.accelerationSpeedLongitudinal+ 5;
+				getConsumerValue(consumer_Buffer, 7);
 			break;
 
 			case 8:
-				VALUES.indicationofbreakswitch= VALUES.indicationofbreakswitch+ 5;
+				getConsumerValue(consumer_Buffer, 8);
 			break;
 			}
 
@@ -515,20 +541,7 @@ void *signalHandler(void *empty){
 }
 
 
-//Read the CSV file
-const char* getConsumerValue(char* line, int num)
-{
-    const char* tok;
 
-    for (tok = strtok(line, ";");
-            tok && *tok;
-            tok = strtok(NULL, ";\n"))
-    {
-        if (!--num)
-            return tok;
-    }
-    return NULL;
-}
 
 
 
@@ -587,9 +600,183 @@ int start_periodic_timer(void *arguments, int flag){
 
 
 
+//Read the CSV file
+void getConsumerValue (const char* line, int producerThreadID){
+	switch(producerThreadID){
 
+		case 1:
+			if(fuelConsumption_RequestCounter >= leadingCycle){
+				fetchValue(line);
+				VALUES.fuelConsumption = fuelConsumption_Array.array[fuelConsumption_RequestCounter];
+				leadingCycle++;
+				fuelConsumption_RequestCounter++;
+			}
+			else{
+				VALUES.fuelConsumption = fuelConsumption_Array.array[fuelConsumption_RequestCounter];
+				fuelConsumption_RequestCounter++;
+			}
+		break;
 
+		case 2:
+			if(engineSpeed_RequestCounter < leadingCycle){
+				fetchValue(line);
+				VALUES.engineSpeed = engineSpeed_Array.array[engineSpeed_RequestCounter];
+				leadingCycle++;
+				engineSpeed_RequestCounter++;
+			}
+			else{
+				VALUES.engineSpeed = engineSpeed_Array.array[engineSpeed_RequestCounter];
+				engineSpeed_RequestCounter++;
+			}
+		break;
 
+		case 3:
+			if(engineCoolantTemperature_RequestCounter < leadingCycle){
+				fetchValue(line);
+				VALUES.engineCoolantTemperature = engineCoolantTemperature_Array.array[engineCoolantTemperature_RequestCounter];
+				leadingCycle++;
+				engineCoolantTemperature_RequestCounter++;
+			}
+			else{
+				VALUES.engineCoolantTemperature = engineCoolantTemperature_Array.array[engineCoolantTemperature_RequestCounter];
+				engineCoolantTemperature_RequestCounter++;
+			}
+		break;
 
+		case 4:
+			if(currentGear_RequestCounter < leadingCycle){
+				fetchValue(line);
+				VALUES.currentGear = currentGear_Array.array[currentGear_RequestCounter];
+				leadingCycle++;
+				currentGear_RequestCounter++;
+			}
+			else{
+				VALUES.currentGear = currentGear_Array.array[currentGear_RequestCounter];
+				currentGear_RequestCounter++;
+			}
+		break;
+
+		case 5:
+			if(transmissionOilTemperature_RequestCounter < leadingCycle){
+				fetchValue(line);
+				VALUES.transmissionOilTemperature = transmissionOilTemperature_Array.array[transmissionOilTemperature_RequestCounter];
+				leadingCycle++;
+				transmissionOilTemperature_RequestCounter++;
+			}
+			else{
+				VALUES.transmissionOilTemperature = transmissionOilTemperature_Array.array[transmissionOilTemperature_RequestCounter];
+				transmissionOilTemperature_RequestCounter++;
+			}
+		break;
+
+		case 6:
+			if(vehicleSpeed_RequestCounter < leadingCycle){
+				fetchValue(line);
+				VALUES.vehicleSpeed = vehicleSpeed_Array.array[vehicleSpeed_RequestCounter];
+				leadingCycle++;
+				vehicleSpeed_RequestCounter++;
+			}
+			else{
+				VALUES.vehicleSpeed = vehicleSpeed_Array.array[vehicleSpeed_RequestCounter];
+				vehicleSpeed_RequestCounter++;
+			}
+		break;
+
+		case 7:
+			if(accelerationSpeedLongitudinal_RequestCounter < leadingCycle){
+				fetchValue(line);
+				VALUES.accelerationSpeedLongitudinal = accelerationSpeedLongitudinal_Array.array[accelerationSpeedLongitudinal_RequestCounter];
+				leadingCycle++;
+				accelerationSpeedLongitudinal_RequestCounter++;
+			}
+			else{
+				VALUES.accelerationSpeedLongitudinal = accelerationSpeedLongitudinal_Array.array[accelerationSpeedLongitudinal_RequestCounter];
+				accelerationSpeedLongitudinal_RequestCounter++;
+			}
+		break;
+
+		case 8:
+			if(indicationofbreakswitch_RequestCounter < leadingCycle){
+				fetchValue(line);
+				VALUES.indicationofbreakswitch = indicationofbreakswitch_Array.array[indicationofbreakswitch_RequestCounter];
+				leadingCycle++;
+				indicationofbreakswitch_RequestCounter++;
+			}
+			else{
+				VALUES.indicationofbreakswitch = indicationofbreakswitch_Array.array[indicationofbreakswitch_RequestCounter];
+				indicationofbreakswitch_RequestCounter++;
+			}
+		break;
+		}
+
+}
+const char* fetchValue(const char* line){
+
+    const char* tok;
+    int mark[8] = {1, 13, 18, 34, 35, 45, 46, 47};
+    int i;
+    for ( i = 0; i < 7; i ++){
+    	char * copy = malloc(strlen(line) + 1);
+    	strcpy(copy, line);
+		for (tok = strtok(copy, ";"); tok && *tok; tok = strtok(NULL, ";\n")){
+			if (!--mark[i]){
+				switch(i){
+
+					case 0:
+						insertArray(&fuelConsumption_Array, atoi(tok));
+					break;
+
+					case 1:
+						insertArray(&engineSpeed_Array, atoi(tok));
+					break;
+
+					case 2:
+						insertArray(&engineCoolantTemperature_Array, atoi(tok));
+					break;
+
+					case 3:
+						insertArray(&currentGear_Array, atoi(tok));
+					break;
+
+					case 4:
+						insertArray(&transmissionOilTemperature_Array, atoi(tok));
+					break;
+
+					case 5:
+						insertArray(&vehicleSpeed_Array, atoi(tok));
+					break;
+
+					case 6:
+						insertArray(&accelerationSpeedLongitudinal_Array, atoi(tok));
+					break;
+
+					case 7:
+						insertArray(&indicationofbreakswitch_Array, atoi(tok));
+					break;
+					}
+			}
+		}
+		free(copy);
+    }
+
+    return NULL;
+}
+void initArray(Array *a, size_t initialSize) {
+  a->array = malloc(initialSize * sizeof(int));
+  a->used = 0;
+  a->size = initialSize;
+}
+void insertArray(Array *a, int element) {
+  if (a->used == a->size) {
+    a->size *= 2;
+    a->array = realloc(a->array, a->size * sizeof(int));
+  }
+  a->array[a->used++] = element;
+}
+void freeArray(Array *a) {
+  free(a->array);
+  a->array = NULL;
+  a->used = a->size = 0;
+}
 
 
