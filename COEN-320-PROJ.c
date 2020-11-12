@@ -35,14 +35,14 @@ sem_t valueMutex;
 
 struct CAR_VALUES
 {
-   double fuelConsumption;
-   double engineSpeed;
-   double engineCoolantTemperature;
-   double currentGear;
-   double transmissionOilTemperature;
-   double vehicleSpeed;
-   double accelerationSpeedLongitudinal;
-   double indicationofbreakswitch;
+   float fuelConsumption;
+   float engineSpeed;
+   float engineCoolantTemperature;
+   float currentGear;
+   float transmissionOilTemperature;
+   float vehicleSpeed;
+   float accelerationSpeedLongitudinal;
+   float indicationofbreakswitch;
 
 }VALUES;
 
@@ -112,11 +112,11 @@ void *producerFunction(void *arguments);
 void initalizeTimers();
 void initalizeProducers();
 
-const char* fetchValue(const char* line);
-void getConsumerValue (const char* line, int producerThreadID);
+char* fetchValue(char* line);
+void getConsumerValue (char* line, int producerThreadID);
 
 void initArray(Array *a, size_t initialSize);
-void insertArray(Array *a, int element);
+void insertArray(Array *a, float element);
 void freeArray(Array *a);
 
 
@@ -154,25 +154,25 @@ int main (int argc, char *argv[]) {
 	pthread_t consumerpThread, timerHandlerThread;
 
 
-	VALUES.fuelConsumption = 0.0;
-	VALUES.engineSpeed = 0.0;
-	VALUES.engineCoolantTemperature =0.0;
-	VALUES.currentGear = 0.0;
-	VALUES.transmissionOilTemperature = 0.0;
+	VALUES.fuelConsumption = 0;
+	VALUES.engineSpeed = 0;
+	VALUES.engineCoolantTemperature =0;
+	VALUES.currentGear = 0;
+	VALUES.transmissionOilTemperature = 0;
 	VALUES.vehicleSpeed = 0.0;
-	VALUES.accelerationSpeedLongitudinal = 0.0;
-	VALUES.indicationofbreakswitch = 0.0;
+	VALUES.accelerationSpeedLongitudinal = 0;
+	VALUES.indicationofbreakswitch = 0;
 
 
 	//Initialize Array Lists (initial size of each: 100)
-	insertArray(&fuelConsumption_Array, 100);
-	insertArray(&engineSpeed_Array, 100);
-	insertArray(&engineCoolantTemperature_Array, 100);
-	insertArray(&currentGear_Array, 100);
-	insertArray(&transmissionOilTemperature_Array, 100);
-	insertArray(&vehicleSpeed_Array, 100);
-	insertArray(&accelerationSpeedLongitudinal_Array, 100);
-	insertArray(&indicationofbreakswitch_Array, 100);
+	initArray(&fuelConsumption_Array, 100);
+	initArray(&engineSpeed_Array, 100);
+	initArray(&engineCoolantTemperature_Array, 100);
+	initArray(&currentGear_Array, 100);
+	initArray(&transmissionOilTemperature_Array, 100);
+	initArray(&vehicleSpeed_Array, 100);
+	initArray(&accelerationSpeedLongitudinal_Array, 100);
+	initArray(&indicationofbreakswitch_Array, 100);
 
 
 	sem_init(&structAccess, 0, 1);
@@ -413,9 +413,11 @@ void* producerFunction(void* arguments)
 		sem_wait(&structAccess);
 		sem_wait(&printMutex);
 
+
 		switch(id){
 
 			case 1:
+				printf("\nDebug_______________________1= %d\n", leadingCycle);
 				getConsumerValue(consumer_Buffer, 1);
 			break;
 
@@ -424,6 +426,7 @@ void* producerFunction(void* arguments)
 			break;
 
 			case 3:
+				printf("\nDebug_______________________1= %d\n", leadingCycle);
 				getConsumerValue(consumer_Buffer, 3);
 			break;
 
@@ -471,15 +474,14 @@ void *consumerThread(void *empty)
 	for (;;) {
 		sem_wait(&updateInterupt);
 			sem_wait(&printMutex);
-			 printf("Fuel Consumption Debug__________= %lf\n", VALUES.fuelConsumption);
-			 printf("Fuel Consumption = %lf\n", VALUES.fuelConsumption);
-			 printf("Engine Speed = %lf\n",VALUES.engineSpeed);
-			 printf("engineCoolantTemperature = %lf\n",VALUES.engineCoolantTemperature);
-			 printf("Current Gear =  %lf\n", VALUES.currentGear);
-			 printf("transmissionOilTemperature =  %lf\n", VALUES.transmissionOilTemperature);
-			 printf("Vehicle Speed = %lf\n",VALUES.vehicleSpeed);
-			 printf("Acceleration Speed Longitudinal = %lf\n", VALUES.accelerationSpeedLongitudinal);
-			 printf("Indication of break switch = %lf\n", VALUES.indicationofbreakswitch);
+			 printf("\nFuel Consumption = %f\n", VALUES.fuelConsumption);
+			 printf("\nEngine Speed = %f\n",VALUES.engineSpeed);
+			 printf("\nengineCoolantTemperature = %f\n",VALUES.engineCoolantTemperature);
+			 printf("\nCurrent Gear =  %f\n", VALUES.currentGear);
+			 printf("\ntransmissionOilTemperature =  %f\n", VALUES.transmissionOilTemperature);
+			 printf("\nVehicle Speed = %f\n",VALUES.vehicleSpeed);
+			 printf("\nAcceleration Speed Longitudinal = %f\n", VALUES.accelerationSpeedLongitudinal);
+			 printf("\nIndication of break switch = %f\n", VALUES.indicationofbreakswitch);
 			 printf("\n");
 			 printf("\n");
 			 sem_post(&printMutex);
@@ -601,7 +603,7 @@ int start_periodic_timer(void *arguments, int flag){
 
 
 //Read the CSV file
-void getConsumerValue (const char* line, int producerThreadID){
+void getConsumerValue (char* line, int producerThreadID){
 	switch(producerThreadID){
 
 		case 1:
@@ -618,7 +620,7 @@ void getConsumerValue (const char* line, int producerThreadID){
 		break;
 
 		case 2:
-			if(engineSpeed_RequestCounter < leadingCycle){
+			if(engineSpeed_RequestCounter >= leadingCycle){
 				fetchValue(line);
 				VALUES.engineSpeed = engineSpeed_Array.array[engineSpeed_RequestCounter];
 				leadingCycle++;
@@ -631,7 +633,10 @@ void getConsumerValue (const char* line, int producerThreadID){
 		break;
 
 		case 3:
-			if(engineCoolantTemperature_RequestCounter < leadingCycle){
+			printf("Debug_______________________2________________1= %d\n", leadingCycle);
+
+			if(engineCoolantTemperature_RequestCounter >= leadingCycle){
+				printf("Debug_______________________2________________2= %d\n", engineCoolantTemperature_RequestCounter);
 				fetchValue(line);
 				VALUES.engineCoolantTemperature = engineCoolantTemperature_Array.array[engineCoolantTemperature_RequestCounter];
 				leadingCycle++;
@@ -644,7 +649,7 @@ void getConsumerValue (const char* line, int producerThreadID){
 		break;
 
 		case 4:
-			if(currentGear_RequestCounter < leadingCycle){
+			if(currentGear_RequestCounter >= leadingCycle){
 				fetchValue(line);
 				VALUES.currentGear = currentGear_Array.array[currentGear_RequestCounter];
 				leadingCycle++;
@@ -657,7 +662,7 @@ void getConsumerValue (const char* line, int producerThreadID){
 		break;
 
 		case 5:
-			if(transmissionOilTemperature_RequestCounter < leadingCycle){
+			if(transmissionOilTemperature_RequestCounter >= leadingCycle){
 				fetchValue(line);
 				VALUES.transmissionOilTemperature = transmissionOilTemperature_Array.array[transmissionOilTemperature_RequestCounter];
 				leadingCycle++;
@@ -670,7 +675,7 @@ void getConsumerValue (const char* line, int producerThreadID){
 		break;
 
 		case 6:
-			if(vehicleSpeed_RequestCounter < leadingCycle){
+			if(vehicleSpeed_RequestCounter >= leadingCycle){
 				fetchValue(line);
 				VALUES.vehicleSpeed = vehicleSpeed_Array.array[vehicleSpeed_RequestCounter];
 				leadingCycle++;
@@ -683,7 +688,7 @@ void getConsumerValue (const char* line, int producerThreadID){
 		break;
 
 		case 7:
-			if(accelerationSpeedLongitudinal_RequestCounter < leadingCycle){
+			if(accelerationSpeedLongitudinal_RequestCounter >= leadingCycle){
 				fetchValue(line);
 				VALUES.accelerationSpeedLongitudinal = accelerationSpeedLongitudinal_Array.array[accelerationSpeedLongitudinal_RequestCounter];
 				leadingCycle++;
@@ -696,7 +701,7 @@ void getConsumerValue (const char* line, int producerThreadID){
 		break;
 
 		case 8:
-			if(indicationofbreakswitch_RequestCounter < leadingCycle){
+			if(indicationofbreakswitch_RequestCounter >= leadingCycle){
 				fetchValue(line);
 				VALUES.indicationofbreakswitch = indicationofbreakswitch_Array.array[indicationofbreakswitch_RequestCounter];
 				leadingCycle++;
@@ -710,66 +715,64 @@ void getConsumerValue (const char* line, int producerThreadID){
 		}
 
 }
-const char* fetchValue(const char* line){
+char* fetchValue(char* line){
 
     const char* tok;
     int mark[8] = {1, 13, 18, 34, 35, 45, 46, 47};
     int i;
-    for ( i = 0; i < 7; i ++){
-    	char * copy = malloc(strlen(line) + 1);
-    	strcpy(copy, line);
-		for (tok = strtok(copy, ";"); tok && *tok; tok = strtok(NULL, ";\n")){
+    fgets(consumer_Buffer, 1024, consumer);
+    for ( i = 0; i < 7; i++){
+		for (tok = strtok(line, ";"); tok && *tok; tok = strtok(NULL, ";\n")){
 			if (!--mark[i]){
 				switch(i){
 
 					case 0:
-						insertArray(&fuelConsumption_Array, atoi(tok));
+						insertArray(&fuelConsumption_Array, atof(tok));
 					break;
 
 					case 1:
-						insertArray(&engineSpeed_Array, atoi(tok));
+						insertArray(&engineSpeed_Array, atof(tok));
 					break;
 
 					case 2:
-						insertArray(&engineCoolantTemperature_Array, atoi(tok));
+						insertArray(&engineCoolantTemperature_Array, atof(tok));
 					break;
 
 					case 3:
-						insertArray(&currentGear_Array, atoi(tok));
+						insertArray(&currentGear_Array, atof(tok));
 					break;
 
 					case 4:
-						insertArray(&transmissionOilTemperature_Array, atoi(tok));
+						insertArray(&transmissionOilTemperature_Array, atof(tok));
 					break;
 
 					case 5:
-						insertArray(&vehicleSpeed_Array, atoi(tok));
+						insertArray(&vehicleSpeed_Array, atof(tok));
 					break;
 
 					case 6:
-						insertArray(&accelerationSpeedLongitudinal_Array, atoi(tok));
+						insertArray(&accelerationSpeedLongitudinal_Array, atof(tok));
 					break;
 
 					case 7:
-						insertArray(&indicationofbreakswitch_Array, atoi(tok));
+						insertArray(&indicationofbreakswitch_Array, atof(tok));
 					break;
 					}
 			}
 		}
-		free(copy);
     }
 
     return NULL;
 }
 void initArray(Array *a, size_t initialSize) {
-  a->array = malloc(initialSize * sizeof(int));
+  a->array = malloc(initialSize * sizeof(float));
   a->used = 0;
   a->size = initialSize;
 }
-void insertArray(Array *a, int element) {
+void insertArray(Array *a, float element) {
   if (a->used == a->size) {
     a->size *= 2;
-    a->array = realloc(a->array, a->size * sizeof(int));
+    a->array = realloc(a->array, a->size * sizeof(float));
   }
   a->array[a->used++] = element;
 }
