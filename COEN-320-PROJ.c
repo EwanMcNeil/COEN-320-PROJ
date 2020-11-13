@@ -32,6 +32,8 @@
 
 sem_t valueMutex;
 
+float currentDataFetchedArray[600][8] = {0, 0, 0, 0, 0, 0, 0, 0};
+int globalSecond = 0;
 
 struct CAR_VALUES
 {
@@ -100,7 +102,7 @@ void *signalHandler(void *);
 void *producerFunction(void *arguments);
 void initalizeTimers();
 void initalizeProducers();
-
+void fetchValues();
 int start_periodic_timer(void *arguments, int flag);
 
 
@@ -110,7 +112,7 @@ int main (int argc, char *argv[]) {
 	pthread_t consumerpThread, timerHandlerThread;
 
 
-	stream = fopen("Driving Data(KIA SOUL)_(150728-160714)_(10 Drivers_A-J).csv", "r");
+	fetchValues();
 
 	VALUES.fuelConsumption = 0.0;
 	VALUES.engineSpeed = 0.0;
@@ -310,6 +312,46 @@ void initalizeTimers(){
 
 
 
+void fetchValues(){
+	//Read the CSV file
+	int localSecond = globalSecond;
+	//Open file and Read line 1 (Title line)
+	FILE* consumer = fopen("/home/DrivingKIA.csv", "r");
+	char consumer_Buffer[1024];
+	int columnFileID[8] = {1, 13, 18, 34, 35, 44, 45, 46};
+
+	//Read 1st line (title)
+	fgets(consumer_Buffer, 1024, consumer);
+
+	int dataCounter = 0;
+	while (dataCounter < 600){
+		//Fetch line
+		fgets(consumer_Buffer, 1024, consumer);
+
+		//Reject potential first ","
+		char * token = strtok(consumer_Buffer, ",");
+
+		int index = 0;
+		int columnFileTokenIndex = 0;
+		while(columnFileTokenIndex < columnFileID[7] && token != NULL){
+			if(columnFileTokenIndex == columnFileID[index] - 1){
+				currentDataFetchedArray[dataCounter][index] = atof(token);
+				token = strtok(NULL, ",");
+				index++;
+			}
+			else{
+				//Reject Token
+				token = strtok(NULL, ",");
+			}
+			columnFileTokenIndex++;
+		}
+		dataCounter++;
+	}
+
+	fclose(consumer);
+}
+
+
 void* producerFunction(void* arguments)
 {
 
@@ -344,11 +386,17 @@ void* producerFunction(void* arguments)
 		currentSecond = 1000* ((accumulativeMilli)/1000000);
 
 		//fprintf(stderr, "current seconds(row) %i \n", currentSecond);
+		if(globalSecond < currentSecond){
+					globalSecond = currentSecond;
+				}
+		else{
+			currentSecond = globalSecond;
+		}
 
 		}
 		if (cycles > 0) {
 			if(id ==3){
-			printf("ID: %i has Ave interval : %f millisecons\n", id,(double)(current-start)/cycles);
+			printf("ID: %i has Ave interval : %f millisecons\n ", id,(double)(current-start)/cycles);
 			}
 		}
 
@@ -358,44 +406,45 @@ void* producerFunction(void* arguments)
 
 		switch(id){
 
-			case 1:
-				VALUES.fuelConsumption =VALUES.fuelConsumption + 1.0;
-			break;
+		case 1:
+						VALUES.fuelConsumption = currentDataFetchedArray[globalSecond][0];
+					break;
 
-			case 2:
-				VALUES.engineSpeed = VALUES.engineSpeed + 3;
-			break;
+					case 2:
+						VALUES.engineSpeed = currentDataFetchedArray[globalSecond][1];
+					break;
 
-			case 3:
-				VALUES.engineCoolantTemperature = VALUES.engineCoolantTemperature + 5;
-			break;
+					case 3:
+						VALUES.engineCoolantTemperature = currentDataFetchedArray[globalSecond][2];
+					break;
 
-			case 4:
-				VALUES.currentGear =VALUES.currentGear + 1.0;
-			break;
+					case 4:
+						VALUES.currentGear = currentDataFetchedArray[globalSecond][3];
+					break;
 
-			case 5:
-				VALUES.transmissionOilTemperature = VALUES.transmissionOilTemperature + 3;
-			break;
+					case 5:
+						VALUES.transmissionOilTemperature = currentDataFetchedArray[globalSecond][4];
+					break;
 
-			case 6:
-				VALUES.vehicleSpeed = VALUES.vehicleSpeed + 5;
-			break;
+					case 6:
+						VALUES.vehicleSpeed = currentDataFetchedArray[globalSecond][5];
+					break;
 
-			case 7:
-				VALUES.accelerationSpeedLongitudinal = VALUES.accelerationSpeedLongitudinal+ 5;
-			break;
+					case 7:
+						VALUES.accelerationSpeedLongitudinal = currentDataFetchedArray[globalSecond][6];
+					break;
 
-			case 8:
-				VALUES.indicationofbreakswitch= VALUES.indicationofbreakswitch+ 5;
-			break;
+					case 8:
+						VALUES.indicationofbreakswitch = currentDataFetchedArray[globalSecond][7];
+					break;
 			}
 
 
 		sem_post(&printMutex);
 		sem_post(&structAccess);
+		if(id == 3){
 		sem_post(&updateInterupt);
-
+		}
 
 	}
 	return NULL;
@@ -415,16 +464,17 @@ void *consumerThread(void *empty)
 		sem_wait(&updateInterupt);
 			sem_wait(&printMutex);
 
-//			 printf("Fuel Consumption = %lf\n", VALUES.fuelConsumption);
-//			 printf("Engine Speed = %lf\n",VALUES.engineSpeed);
-//			 printf("engineCoolantTemperature = %lf\n",VALUES.engineCoolantTemperature);
-//			 printf("Current Gear =  %lf\n", VALUES.currentGear);
-//			 printf("transmissionOilTemperature =  %lf\n", VALUES.transmissionOilTemperature);
-//			 printf("Vehicle Speed = %lf\n",VALUES.vehicleSpeed);
-//			 printf("Acceleration Speed Longitudinal = %lf\n", VALUES.accelerationSpeedLongitudinal);
-//			 printf("Indication of break switch = %lf\n", VALUES.indicationofbreakswitch);
-//			 printf("\n");
-//			 printf("\n");
+			 printf("CURRENT TIME: %i ", globalSecond);
+			 printf("Fuel Consumption = %lf\n", VALUES.fuelConsumption);
+			 printf("Engine Speed = %lf\n",VALUES.engineSpeed);
+			 printf("engineCoolantTemperature = %lf\n",VALUES.engineCoolantTemperature);
+			 printf("Current Gear =  %lf\n", VALUES.currentGear);
+			 printf("transmissionOilTemperature =  %lf\n", VALUES.transmissionOilTemperature);
+			 printf("Vehicle Speed = %lf\n",VALUES.vehicleSpeed);
+			 printf("Acceleration Speed Longitudinal = %lf\n", VALUES.accelerationSpeedLongitudinal);
+			 printf("Indication of break switch = %lf\n", VALUES.indicationofbreakswitch);
+			 printf("\n");
+			 printf("\n");
 			 sem_post(&printMutex);
 
 	}
