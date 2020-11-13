@@ -64,7 +64,7 @@ sem_t accelerationFlag;
 sem_t breakFlag;
 
 
-
+//Fetching Global Variables
 float currentDataFetchedArray[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 int globalSecond = 0;
 
@@ -323,6 +323,7 @@ void initalizeTimers(){
 
 void* producerFunction(void* arguments)
 {
+	//Not sure if you wanted to keep "fprintf" or simply print a line
 	printf("PRODUCERFUNCTION");
 
 
@@ -359,9 +360,7 @@ void* producerFunction(void* arguments)
 		if(globalSecond < currentSecond){
 			globalSecond = currentSecond;
 		}
-		printf("\nBebug Local Second_______________ = %d\n", currentSecond);
-		printf("\nBebug Global Second_______________ = %d\n", globalSecond);
-
+		//Not sure if you wanted to use specifically "fprintf" or simply printing a line
 		printf("current seconds(row) %i \n", currentSecond);
 		printf("ID %i \n", id);
 		}
