@@ -188,15 +188,18 @@ void initalizeProducers(){
 	pthread_create(&th1,NULL, &producerFunction ,(void *)fuelConsumptionStruct);
 
 
-	struct producer_struct *engineCoolStruct = (struct producer_struct *)malloc(sizeof(struct producer_struct));
-	engineCoolStruct->flag = &engineCoolFlag;
-	engineCoolStruct->id = 2;
-	pthread_create(&th2,NULL, &producerFunction,(void *)engineCoolStruct);
+
 
 	struct producer_struct *engineSpeed = (struct producer_struct *)malloc(sizeof(struct producer_struct));
 	engineSpeed->flag = &engineSpeedFlag;
-	engineSpeed->id = 3;
+	engineSpeed->id = 2;
 	pthread_create(&th3,NULL, &producerFunction ,(void *)engineSpeed);
+
+
+	struct producer_struct *engineCoolStruct = (struct producer_struct *)malloc(sizeof(struct producer_struct));
+	engineCoolStruct->flag = &engineCoolFlag;
+	engineCoolStruct->id = 3;
+	pthread_create(&th2,NULL, &producerFunction,(void *)engineCoolStruct);
 
 	struct producer_struct *currentGear = (struct producer_struct *)malloc(sizeof(struct producer_struct));
 	currentGear->flag = &currentGearFlag;
@@ -243,7 +246,7 @@ void initalizeTimers(){
 		argsFUEL.offset = 10000;
 		argsFUEL.period = 10000;
 		argsFUEL.signalID = SIGUSR1;
-		start_periodic_timer(&argsFUEL,2);
+		start_periodic_timer(&argsFUEL,1);
 
 		//timer for the Engine Speed (RPM) 500 ms
 		struct arg_struct argsENGSPEED;
@@ -251,7 +254,7 @@ void initalizeTimers(){
 		argsENGSPEED.offset = 10000;
 		argsENGSPEED.period = 500000;
 		argsENGSPEED.signalID = SIGUSR2;
-		start_periodic_timer(&argsENGSPEED,1);
+		start_periodic_timer(&argsENGSPEED,2);
 
 		//timer Engine Coolant Temperature 2 s
 		struct arg_struct argsENGCOOL;
@@ -317,8 +320,8 @@ void* producerFunction(void* arguments)
 	sem_t *flag = args->flag;
 	int id  = args->id;
 
-	static int cycles = 0;
-	static uint64_t start;
+	int cycles = 0;
+	uint64_t start;
 	uint64_t current;
 	struct timespec tv;
 	double accumulativeMilli = 0;
@@ -340,12 +343,13 @@ void* producerFunction(void* arguments)
 		accumulativeMilli = accumulativeMilli + (double)(current-start)/cycles;
 		currentSecond = 1000* ((accumulativeMilli)/1000000);
 
-		fprintf(stderr, "current seconds(row) %i \n", currentSecond);
-		fprintf(stderr, "ID %i \n", id);
+		//fprintf(stderr, "current seconds(row) %i \n", currentSecond);
+
 		}
 		if (cycles > 0) {
-			//fprintf(stderr, "Ave interval between Fuel instances: %f millisecons\n",
-				//(double)(current-start)/cycles);
+			if(id ==3){
+			printf("ID: %i has Ave interval : %f millisecons\n", id,(double)(current-start)/cycles);
+			}
 		}
 
 		cycles++;
@@ -411,16 +415,16 @@ void *consumerThread(void *empty)
 		sem_wait(&updateInterupt);
 			sem_wait(&printMutex);
 
-			 printf("Fuel Consumption = %lf\n", VALUES.fuelConsumption);
-			 printf("Engine Speed = %lf\n",VALUES.engineSpeed);
-			 printf("engineCoolantTemperature = %lf\n",VALUES.engineCoolantTemperature);
-			 printf("Current Gear =  %lf\n", VALUES.currentGear);
-			 printf("transmissionOilTemperature =  %lf\n", VALUES.transmissionOilTemperature);
-			 printf("Vehicle Speed = %lf\n",VALUES.vehicleSpeed);
-			 printf("Acceleration Speed Longitudinal = %lf\n", VALUES.accelerationSpeedLongitudinal);
-			 printf("Indication of break switch = %lf\n", VALUES.indicationofbreakswitch);
-			 printf("\n");
-			 printf("\n");
+//			 printf("Fuel Consumption = %lf\n", VALUES.fuelConsumption);
+//			 printf("Engine Speed = %lf\n",VALUES.engineSpeed);
+//			 printf("engineCoolantTemperature = %lf\n",VALUES.engineCoolantTemperature);
+//			 printf("Current Gear =  %lf\n", VALUES.currentGear);
+//			 printf("transmissionOilTemperature =  %lf\n", VALUES.transmissionOilTemperature);
+//			 printf("Vehicle Speed = %lf\n",VALUES.vehicleSpeed);
+//			 printf("Acceleration Speed Longitudinal = %lf\n", VALUES.accelerationSpeedLongitudinal);
+//			 printf("Indication of break switch = %lf\n", VALUES.indicationofbreakswitch);
+//			 printf("\n");
+//			 printf("\n");
 			 sem_post(&printMutex);
 
 	}
@@ -463,7 +467,7 @@ void *signalHandler(void *empty){
 	break;
 
 	case 6:
-		sem_post(& speedFlag);
+		sem_post(&speedFlag);
 	break;
 
 	case 7:
