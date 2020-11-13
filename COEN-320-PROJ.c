@@ -64,16 +64,16 @@ sem_t accelerationFlag;
 sem_t breakFlag;
 
 
-FILE* consumer;
-char consumer_Buffer[1024];
 
-
+float currentDataFetchedArray[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+int globalSecond = 0;
 
 struct arg_struct {
     sigset_t *sigst;
     uint64_t offset;
     int period;
     int signalID;
+    int columnID;
 };
 
 
@@ -82,12 +82,6 @@ struct producer_struct {
     int id;
 };
 
-
-typedef struct {
-  int *array;
-  size_t used;
-  size_t size;
-} Array;
 
 
 
@@ -112,45 +106,16 @@ void *producerFunction(void *arguments);
 void initalizeTimers();
 void initalizeProducers();
 
-char* fetchValue(char* line);
-void getConsumerValue (char* line, int producerThreadID);
-
-void initArray(Array *a, size_t initialSize);
-void insertArray(Array *a, float element);
-void freeArray(Array *a);
 
 
 int start_periodic_timer(void *arguments, int flag);
 
 
-//Create Array List
-Array fuelConsumption_Array;
-Array engineSpeed_Array;
-Array engineCoolantTemperature_Array;
-Array currentGear_Array;
-Array transmissionOilTemperature_Array;
-Array vehicleSpeed_Array;
-Array accelerationSpeedLongitudinal_Array;
-Array indicationofbreakswitch_Array;
 
-int fuelConsumption_RequestCounter = 0;
-int engineSpeed_RequestCounter = 0;
-int engineCoolantTemperature_RequestCounter = 0;
-int currentGear_RequestCounter = 0;
-int transmissionOilTemperature_RequestCounter = 0;
-int vehicleSpeed_RequestCounter = 0;
-int accelerationSpeedLongitudinal_RequestCounter = 0;
-int indicationofbreakswitch_RequestCounter = 0;
 
-int leadingCycle = 0;
 
 
 int main (int argc, char *argv[]) {
-
-	//Open file and Read line 1 (Title line)
-	consumer = fopen("/home/DrivingKIA.csv", "r");
-	fgets(consumer_Buffer, 1024, consumer);
-
 	pthread_t consumerpThread, timerHandlerThread;
 
 
@@ -163,16 +128,6 @@ int main (int argc, char *argv[]) {
 	VALUES.accelerationSpeedLongitudinal = 0;
 	VALUES.indicationofbreakswitch = 0;
 
-
-	//Initialize Array Lists (initial size of each: 100)
-	initArray(&fuelConsumption_Array, 100);
-	initArray(&engineSpeed_Array, 100);
-	initArray(&engineCoolantTemperature_Array, 100);
-	initArray(&currentGear_Array, 100);
-	initArray(&transmissionOilTemperature_Array, 100);
-	initArray(&vehicleSpeed_Array, 100);
-	initArray(&accelerationSpeedLongitudinal_Array, 100);
-	initArray(&indicationofbreakswitch_Array, 100);
 
 
 	sem_init(&structAccess, 0, 1);
@@ -209,17 +164,6 @@ int main (int argc, char *argv[]) {
 	pthread_join(&timerHandlerThread, NULL);
 
 	pause();
-
-
-
-	freeArray(&fuelConsumption_Array);
-	freeArray(&engineSpeed_Array);
-	freeArray(&engineCoolantTemperature_Array);
-	freeArray(&currentGear_Array);
-	freeArray(&transmissionOilTemperature_Array);
-	freeArray(&vehicleSpeed_Array);
-	freeArray(&accelerationSpeedLongitudinal_Array);
-	freeArray(&indicationofbreakswitch_Array);
 
 	return EXIT_SUCCESS;
 
@@ -305,6 +249,7 @@ void initalizeTimers(){
 		argsFUEL.offset = 10000;
 		argsFUEL.period = 10000;
 		argsFUEL.signalID = SIGUSR1;
+		argsFUEL.columnID = 1;
 		start_periodic_timer(&argsFUEL,2);
 
 		//timer for the Engine Speed (RPM) 500 ms
@@ -313,6 +258,7 @@ void initalizeTimers(){
 		argsENGSPEED.offset = 10000;
 		argsENGSPEED.period = 500000;
 		argsENGSPEED.signalID = SIGUSR2;
+		argsFUEL.columnID = 13;
 		start_periodic_timer(&argsENGSPEED,1);
 
 		//timer Engine Coolant Temperature 2 s
@@ -321,6 +267,7 @@ void initalizeTimers(){
 		argsENGCOOL.offset = 10000;
 		argsENGCOOL.period = 2000000;
 		argsENGCOOL.signalID = 3;
+		argsFUEL.columnID = 18;
 		start_periodic_timer(&argsENGCOOL,3);
 
 		//timer Current Gear 100 ms
@@ -329,6 +276,7 @@ void initalizeTimers(){
 		argsCurrentGear.offset = 10000;
 		argsCurrentGear.period = 100000;
 		argsCurrentGear.signalID = 4;
+		argsFUEL.columnID = 34;
 		start_periodic_timer(&argsCurrentGear,4);
 
 		//timer Transmission Oil Temperature 5 s
@@ -337,6 +285,7 @@ void initalizeTimers(){
 		argsOilTemp.offset = 10000;
 		argsOilTemp.period = 5000000;
 		argsOilTemp.signalID = 5;
+		argsFUEL.columnID = 35;
 		start_periodic_timer(&argsOilTemp,5);
 
 		//timer Vehicle Speed 100 ms
@@ -345,6 +294,7 @@ void initalizeTimers(){
 		argsSPEED.offset = 10000;
 		argsSPEED.period = 100000;
 		argsSPEED.signalID = 6;
+		argsFUEL.columnID = 45;
 		start_periodic_timer(&argsSPEED,6);
 
 		//timer Acceleration Speed Longitudinal 150 ms
@@ -353,6 +303,7 @@ void initalizeTimers(){
 		argsACCELERATION.offset = 10000;
 		argsACCELERATION.period = 150000;
 		argsACCELERATION.signalID = 7;
+		argsFUEL.columnID = 46;
 		start_periodic_timer(&argsACCELERATION,7);
 
 		//timer Indication of break switch 100 ms
@@ -361,6 +312,7 @@ void initalizeTimers(){
 		argsBREAKSWITCH.offset = 10000;
 		argsBREAKSWITCH.period = 100000;
 		argsBREAKSWITCH.signalID = 8;
+		argsFUEL.columnID = 47;
 		start_periodic_timer(&argsBREAKSWITCH,8);
 
 
@@ -371,7 +323,7 @@ void initalizeTimers(){
 
 void* producerFunction(void* arguments)
 {
-	fprintf(stderr, "PRODUCERFUNCTION");
+	printf("PRODUCERFUNCTION");
 
 
 	struct  producer_struct *args = (struct  producer_struct*)arguments;
@@ -398,11 +350,20 @@ void* producerFunction(void* arguments)
 		current = tv.tv_sec * ONE_THOUSAND + tv.tv_nsec / ONE_MILLION;
 
 		if (cycles > 0) {
+
 		accumulativeMilli = accumulativeMilli + (double)(current-start)/cycles;
 		currentSecond = 1000* ((accumulativeMilli)/1000000);
 
-		fprintf(stderr, "current seconds(row) %i \n", currentSecond);
-		fprintf(stderr, "ID %i \n", id);
+		//implement fetching column
+		//fetchValues(consumer_Buffer);
+		if(globalSecond < currentSecond){
+			globalSecond = currentSecond;
+		}
+		printf("\nBebug Local Second_______________ = %d\n", currentSecond);
+		printf("\nBebug Global Second_______________ = %d\n", globalSecond);
+
+		printf("current seconds(row) %i \n", currentSecond);
+		printf("ID %i \n", id);
 		}
 		if (cycles > 0) {
 			//fprintf(stderr, "Ave interval between Fuel instances: %f millisecons\n",
@@ -417,37 +378,35 @@ void* producerFunction(void* arguments)
 		switch(id){
 
 			case 1:
-				printf("\nDebug_______________________1= %d\n", leadingCycle);
-				getConsumerValue(consumer_Buffer, 1);
+				VALUES.fuelConsumption = currentDataFetchedArray[0];
 			break;
 
 			case 2:
-				getConsumerValue(consumer_Buffer, 2);
+				VALUES.engineSpeed = currentDataFetchedArray[1];
 			break;
 
 			case 3:
-				printf("\nDebug_______________________1= %d\n", leadingCycle);
-				getConsumerValue(consumer_Buffer, 3);
+				VALUES.engineCoolantTemperature = currentDataFetchedArray[2];
 			break;
 
 			case 4:
-				getConsumerValue(consumer_Buffer, 4);
+				VALUES.currentGear = currentDataFetchedArray[3];
 			break;
 
 			case 5:
-				getConsumerValue(consumer_Buffer, 5);
+				VALUES.transmissionOilTemperature = currentDataFetchedArray[4];
 			break;
 
 			case 6:
-				getConsumerValue(consumer_Buffer, 6);
+				VALUES.vehicleSpeed = currentDataFetchedArray[5];
 			break;
 
 			case 7:
-				getConsumerValue(consumer_Buffer, 7);
+				VALUES.accelerationSpeedLongitudinal = currentDataFetchedArray[6];
 			break;
 
 			case 8:
-				getConsumerValue(consumer_Buffer, 8);
+				VALUES.indicationofbreakswitch = currentDataFetchedArray[7];
 			break;
 			}
 
@@ -471,17 +430,58 @@ void* producerFunction(void* arguments)
 void *consumerThread(void *empty)
 {
 
+	//Read the CSV file
+	int localSecond = globalSecond;
+	//Open file and Read line 1 (Title line)
+	FILE* consumer = fopen("/home/DrivingKIA.csv", "r");
+	char consumer_Buffer[1024];
+	int columnFileID[8] = {1, 13, 18, 34, 35, 44, 45, 46};
+
+	//Read 1st line (title)
+	fgets(consumer_Buffer, 1024, consumer);
+
+	//Execute first Read at second 0
+	fgets(consumer_Buffer, 1024, consumer);
+
 	for (;;) {
+
 		sem_wait(&updateInterupt);
 			sem_wait(&printMutex);
+
+			if(localSecond < globalSecond){
+				//Update Local Timer
+				localSecond = globalSecond;
+
+				//Fetch line
+			    fgets(consumer_Buffer, 1024, consumer);
+
+			    //Reject potential first ","
+			    char * token = strtok(consumer_Buffer, ",");
+
+			    int index = 0;
+			    int columnFileTokenIndex = 0;
+			    while(columnFileTokenIndex < columnFileID[7] && token != NULL){
+			    	if(columnFileTokenIndex == columnFileID[index] - 1){
+			    		currentDataFetchedArray[index] = atof(token);
+			    		token = strtok(NULL, ",");
+			    		index++;
+			    	}
+			    	else{
+			    		//Reject Token
+			    		token = strtok(NULL, ",");
+			    	}
+			    	columnFileTokenIndex++;
+			    }
+			}
+
 			 printf("\nFuel Consumption = %f\n", VALUES.fuelConsumption);
-			 printf("\nEngine Speed = %f\n",VALUES.engineSpeed);
-			 printf("\nengineCoolantTemperature = %f\n",VALUES.engineCoolantTemperature);
-			 printf("\nCurrent Gear =  %f\n", VALUES.currentGear);
-			 printf("\ntransmissionOilTemperature =  %f\n", VALUES.transmissionOilTemperature);
-			 printf("\nVehicle Speed = %f\n",VALUES.vehicleSpeed);
-			 printf("\nAcceleration Speed Longitudinal = %f\n", VALUES.accelerationSpeedLongitudinal);
-			 printf("\nIndication of break switch = %f\n", VALUES.indicationofbreakswitch);
+			 printf("Engine Speed = %f\n",VALUES.engineSpeed);
+			 printf("engineCoolantTemperature = %f\n",VALUES.engineCoolantTemperature);
+			 printf("Current Gear =  %f\n", VALUES.currentGear);
+			 printf("TransmissionOilTemperature =  %f\n", VALUES.transmissionOilTemperature);
+			 printf("Vehicle Speed = %f\n",VALUES.vehicleSpeed);
+			 printf("Acceleration Speed Longitudinal = %f\n", VALUES.accelerationSpeedLongitudinal);
+			 printf("Indication of break switch = %f\n", VALUES.indicationofbreakswitch);
 			 printf("\n");
 			 printf("\n");
 			 sem_post(&printMutex);
@@ -599,187 +599,4 @@ int start_periodic_timer(void *arguments, int flag){
 	printf("Activate.\n");
 	return timer_settime(timer, 0, &timer_spec, NULL);
 }
-
-
-
-//Read the CSV file
-void getConsumerValue (char* line, int producerThreadID){
-	switch(producerThreadID){
-
-		case 1:
-			if(fuelConsumption_RequestCounter >= leadingCycle){
-				fetchValue(line);
-				VALUES.fuelConsumption = fuelConsumption_Array.array[fuelConsumption_RequestCounter];
-				leadingCycle++;
-				fuelConsumption_RequestCounter++;
-			}
-			else{
-				VALUES.fuelConsumption = fuelConsumption_Array.array[fuelConsumption_RequestCounter];
-				fuelConsumption_RequestCounter++;
-			}
-		break;
-
-		case 2:
-			if(engineSpeed_RequestCounter >= leadingCycle){
-				fetchValue(line);
-				VALUES.engineSpeed = engineSpeed_Array.array[engineSpeed_RequestCounter];
-				leadingCycle++;
-				engineSpeed_RequestCounter++;
-			}
-			else{
-				VALUES.engineSpeed = engineSpeed_Array.array[engineSpeed_RequestCounter];
-				engineSpeed_RequestCounter++;
-			}
-		break;
-
-		case 3:
-			printf("Debug_______________________2________________1= %d\n", leadingCycle);
-
-			if(engineCoolantTemperature_RequestCounter >= leadingCycle){
-				printf("Debug_______________________2________________2= %d\n", engineCoolantTemperature_RequestCounter);
-				fetchValue(line);
-				VALUES.engineCoolantTemperature = engineCoolantTemperature_Array.array[engineCoolantTemperature_RequestCounter];
-				leadingCycle++;
-				engineCoolantTemperature_RequestCounter++;
-			}
-			else{
-				VALUES.engineCoolantTemperature = engineCoolantTemperature_Array.array[engineCoolantTemperature_RequestCounter];
-				engineCoolantTemperature_RequestCounter++;
-			}
-		break;
-
-		case 4:
-			if(currentGear_RequestCounter >= leadingCycle){
-				fetchValue(line);
-				VALUES.currentGear = currentGear_Array.array[currentGear_RequestCounter];
-				leadingCycle++;
-				currentGear_RequestCounter++;
-			}
-			else{
-				VALUES.currentGear = currentGear_Array.array[currentGear_RequestCounter];
-				currentGear_RequestCounter++;
-			}
-		break;
-
-		case 5:
-			if(transmissionOilTemperature_RequestCounter >= leadingCycle){
-				fetchValue(line);
-				VALUES.transmissionOilTemperature = transmissionOilTemperature_Array.array[transmissionOilTemperature_RequestCounter];
-				leadingCycle++;
-				transmissionOilTemperature_RequestCounter++;
-			}
-			else{
-				VALUES.transmissionOilTemperature = transmissionOilTemperature_Array.array[transmissionOilTemperature_RequestCounter];
-				transmissionOilTemperature_RequestCounter++;
-			}
-		break;
-
-		case 6:
-			if(vehicleSpeed_RequestCounter >= leadingCycle){
-				fetchValue(line);
-				VALUES.vehicleSpeed = vehicleSpeed_Array.array[vehicleSpeed_RequestCounter];
-				leadingCycle++;
-				vehicleSpeed_RequestCounter++;
-			}
-			else{
-				VALUES.vehicleSpeed = vehicleSpeed_Array.array[vehicleSpeed_RequestCounter];
-				vehicleSpeed_RequestCounter++;
-			}
-		break;
-
-		case 7:
-			if(accelerationSpeedLongitudinal_RequestCounter >= leadingCycle){
-				fetchValue(line);
-				VALUES.accelerationSpeedLongitudinal = accelerationSpeedLongitudinal_Array.array[accelerationSpeedLongitudinal_RequestCounter];
-				leadingCycle++;
-				accelerationSpeedLongitudinal_RequestCounter++;
-			}
-			else{
-				VALUES.accelerationSpeedLongitudinal = accelerationSpeedLongitudinal_Array.array[accelerationSpeedLongitudinal_RequestCounter];
-				accelerationSpeedLongitudinal_RequestCounter++;
-			}
-		break;
-
-		case 8:
-			if(indicationofbreakswitch_RequestCounter >= leadingCycle){
-				fetchValue(line);
-				VALUES.indicationofbreakswitch = indicationofbreakswitch_Array.array[indicationofbreakswitch_RequestCounter];
-				leadingCycle++;
-				indicationofbreakswitch_RequestCounter++;
-			}
-			else{
-				VALUES.indicationofbreakswitch = indicationofbreakswitch_Array.array[indicationofbreakswitch_RequestCounter];
-				indicationofbreakswitch_RequestCounter++;
-			}
-		break;
-		}
-
-}
-char* fetchValue(char* line){
-
-    const char* tok;
-    int mark[8] = {1, 13, 18, 34, 35, 45, 46, 47};
-    int i;
-    fgets(consumer_Buffer, 1024, consumer);
-    for ( i = 0; i < 7; i++){
-		for (tok = strtok(line, ";"); tok && *tok; tok = strtok(NULL, ";\n")){
-			if (!--mark[i]){
-				switch(i){
-
-					case 0:
-						insertArray(&fuelConsumption_Array, atof(tok));
-					break;
-
-					case 1:
-						insertArray(&engineSpeed_Array, atof(tok));
-					break;
-
-					case 2:
-						insertArray(&engineCoolantTemperature_Array, atof(tok));
-					break;
-
-					case 3:
-						insertArray(&currentGear_Array, atof(tok));
-					break;
-
-					case 4:
-						insertArray(&transmissionOilTemperature_Array, atof(tok));
-					break;
-
-					case 5:
-						insertArray(&vehicleSpeed_Array, atof(tok));
-					break;
-
-					case 6:
-						insertArray(&accelerationSpeedLongitudinal_Array, atof(tok));
-					break;
-
-					case 7:
-						insertArray(&indicationofbreakswitch_Array, atof(tok));
-					break;
-					}
-			}
-		}
-    }
-
-    return NULL;
-}
-void initArray(Array *a, size_t initialSize) {
-  a->array = malloc(initialSize * sizeof(float));
-  a->used = 0;
-  a->size = initialSize;
-}
-void insertArray(Array *a, float element) {
-  if (a->used == a->size) {
-    a->size *= 2;
-    a->array = realloc(a->array, a->size * sizeof(float));
-  }
-  a->array[a->used++] = element;
-}
-void freeArray(Array *a) {
-  free(a->array);
-  a->array = NULL;
-  a->used = a->size = 0;
-}
-
 
