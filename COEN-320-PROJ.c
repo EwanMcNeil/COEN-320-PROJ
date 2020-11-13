@@ -32,7 +32,7 @@
 
 sem_t valueMutex;
 
-float currentDataFetchedArray[600][8] = {0, 0, 0, 0, 0, 0, 0, 0};
+float currentDataFetchedArray[600][8];
 int globalSecond = 0;
 
 struct CAR_VALUES
@@ -314,7 +314,6 @@ void initalizeTimers(){
 
 void fetchValues(){
 	//Read the CSV file
-	int localSecond = globalSecond;
 	//Open file and Read line 1 (Title line)
 	FILE* consumer = fopen("/home/DrivingKIA.csv", "r");
 	char consumer_Buffer[1024];
@@ -322,7 +321,7 @@ void fetchValues(){
 
 	//Read 1st line (title)
 	fgets(consumer_Buffer, 1024, consumer);
-
+	fgets(consumer_Buffer, 1024, consumer);
 	int dataCounter = 0;
 	while (dataCounter < 600){
 		//Fetch line
@@ -349,6 +348,13 @@ void fetchValues(){
 	}
 
 	fclose(consumer);
+
+	int arrayCount = 0;
+	while(arrayCount < 600){
+
+		printf("%i, %f, %f,%f,%f,%f, %f,%f,%f \n ", arrayCount,currentDataFetchedArray[arrayCount][0],currentDataFetchedArray[arrayCount][1],currentDataFetchedArray[arrayCount][2],currentDataFetchedArray[arrayCount][3],currentDataFetchedArray[arrayCount][4],currentDataFetchedArray[arrayCount][5],currentDataFetchedArray[arrayCount][6],currentDataFetchedArray[arrayCount][7]);
+		arrayCount++;
+	}
 }
 
 
@@ -407,44 +413,43 @@ void* producerFunction(void* arguments)
 		switch(id){
 
 		case 1:
-						VALUES.fuelConsumption = currentDataFetchedArray[globalSecond][0];
+						VALUES.fuelConsumption = currentDataFetchedArray[globalSecond-1][0];
 					break;
 
 					case 2:
-						VALUES.engineSpeed = currentDataFetchedArray[globalSecond][1];
+						VALUES.engineSpeed = currentDataFetchedArray[globalSecond-1][1];
 					break;
 
 					case 3:
-						VALUES.engineCoolantTemperature = currentDataFetchedArray[globalSecond][2];
+						VALUES.engineCoolantTemperature = currentDataFetchedArray[globalSecond-1][2];
 					break;
 
 					case 4:
-						VALUES.currentGear = currentDataFetchedArray[globalSecond][3];
+						VALUES.currentGear = currentDataFetchedArray[globalSecond-1][3];
 					break;
 
 					case 5:
-						VALUES.transmissionOilTemperature = currentDataFetchedArray[globalSecond][4];
+						VALUES.transmissionOilTemperature = currentDataFetchedArray[globalSecond-1][4];
 					break;
 
 					case 6:
-						VALUES.vehicleSpeed = currentDataFetchedArray[globalSecond][5];
+						VALUES.vehicleSpeed = currentDataFetchedArray[globalSecond-1][5];
 					break;
 
 					case 7:
-						VALUES.accelerationSpeedLongitudinal = currentDataFetchedArray[globalSecond][6];
+						VALUES.accelerationSpeedLongitudinal = currentDataFetchedArray[globalSecond-1][6];
 					break;
 
 					case 8:
-						VALUES.indicationofbreakswitch = currentDataFetchedArray[globalSecond][7];
+						VALUES.indicationofbreakswitch = currentDataFetchedArray[globalSecond-1][7];
 					break;
 			}
 
 
 		sem_post(&printMutex);
 		sem_post(&structAccess);
-		if(id == 3){
 		sem_post(&updateInterupt);
-		}
+
 
 	}
 	return NULL;
@@ -464,7 +469,7 @@ void *consumerThread(void *empty)
 		sem_wait(&updateInterupt);
 			sem_wait(&printMutex);
 
-			 printf("CURRENT TIME: %i ", globalSecond);
+			 printf("CURRENT TIME: %i \n ", globalSecond);
 			 printf("Fuel Consumption = %lf\n", VALUES.fuelConsumption);
 			 printf("Engine Speed = %lf\n",VALUES.engineSpeed);
 			 printf("engineCoolantTemperature = %lf\n",VALUES.engineCoolantTemperature);
