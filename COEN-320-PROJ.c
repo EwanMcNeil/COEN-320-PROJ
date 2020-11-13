@@ -65,7 +65,7 @@ sem_t breakFlag;
 
 
 //Fetching Global Variables
-float currentDataFetchedArray[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+float currentDataFetchedArray[600][8] = {0, 0, 0, 0, 0, 0, 0, 0};
 int globalSecond = 0;
 
 struct arg_struct {
@@ -105,7 +105,7 @@ void *signalHandler(void *);
 void *producerFunction(void *arguments);
 void initalizeTimers();
 void initalizeProducers();
-
+void fetchValues();
 
 
 int start_periodic_timer(void *arguments, int flag);
@@ -116,6 +116,8 @@ int start_periodic_timer(void *arguments, int flag);
 
 
 int main (int argc, char *argv[]) {
+
+	fetchValues();
 	pthread_t consumerpThread, timerHandlerThread;
 
 
@@ -377,35 +379,35 @@ void* producerFunction(void* arguments)
 		switch(id){
 
 			case 1:
-				VALUES.fuelConsumption = currentDataFetchedArray[0];
+				VALUES.fuelConsumption = currentDataFetchedArray[globalSecond][0];
 			break;
 
 			case 2:
-				VALUES.engineSpeed = currentDataFetchedArray[1];
+				VALUES.engineSpeed = currentDataFetchedArray[globalSecond][1];
 			break;
 
 			case 3:
-				VALUES.engineCoolantTemperature = currentDataFetchedArray[2];
+				VALUES.engineCoolantTemperature = currentDataFetchedArray[globalSecond][2];
 			break;
 
 			case 4:
-				VALUES.currentGear = currentDataFetchedArray[3];
+				VALUES.currentGear = currentDataFetchedArray[globalSecond][3];
 			break;
 
 			case 5:
-				VALUES.transmissionOilTemperature = currentDataFetchedArray[4];
+				VALUES.transmissionOilTemperature = currentDataFetchedArray[globalSecond][4];
 			break;
 
 			case 6:
-				VALUES.vehicleSpeed = currentDataFetchedArray[5];
+				VALUES.vehicleSpeed = currentDataFetchedArray[globalSecond][5];
 			break;
 
 			case 7:
-				VALUES.accelerationSpeedLongitudinal = currentDataFetchedArray[6];
+				VALUES.accelerationSpeedLongitudinal = currentDataFetchedArray[globalSecond][6];
 			break;
 
 			case 8:
-				VALUES.indicationofbreakswitch = currentDataFetchedArray[7];
+				VALUES.indicationofbreakswitch = currentDataFetchedArray[globalSecond][7];
 			break;
 			}
 
@@ -420,15 +422,7 @@ void* producerFunction(void* arguments)
 }
 
 
-
-
-
-
-
-
-void *consumerThread(void *empty)
-{
-
+void fetchValues(){
 	//Read the CSV file
 	int localSecond = globalSecond;
 	//Open file and Read line 1 (Title line)
@@ -439,39 +433,49 @@ void *consumerThread(void *empty)
 	//Read 1st line (title)
 	fgets(consumer_Buffer, 1024, consumer);
 
-	//Execute first Read at second 0
-	fgets(consumer_Buffer, 1024, consumer);
+	int dataCounter = 0;
+	while (dataCounter < 600){
+		//Fetch line
+		fgets(consumer_Buffer, 1024, consumer);
+
+		//Reject potential first ","
+		char * token = strtok(consumer_Buffer, ",");
+
+		int index = 0;
+		int columnFileTokenIndex = 0;
+		while(columnFileTokenIndex < columnFileID[7] && token != NULL){
+			if(columnFileTokenIndex == columnFileID[index] - 1){
+				currentDataFetchedArray[dataCounter][index] = atof(token);
+				token = strtok(NULL, ",");
+				index++;
+			}
+			else{
+				//Reject Token
+				token = strtok(NULL, ",");
+			}
+			columnFileTokenIndex++;
+		}
+		dataCounter++;
+	}
+
+	fclose(consumer);
+}
+
+
+
+
+
+void *consumerThread(void *empty)
+{
+
+
 
 	for (;;) {
 
 		sem_wait(&updateInterupt);
 			sem_wait(&printMutex);
 
-			if(localSecond < globalSecond){
-				//Update Local Timer
-				localSecond = globalSecond;
 
-				//Fetch line
-			    fgets(consumer_Buffer, 1024, consumer);
-
-			    //Reject potential first ","
-			    char * token = strtok(consumer_Buffer, ",");
-
-			    int index = 0;
-			    int columnFileTokenIndex = 0;
-			    while(columnFileTokenIndex < columnFileID[7] && token != NULL){
-			    	if(columnFileTokenIndex == columnFileID[index] - 1){
-			    		currentDataFetchedArray[index] = atof(token);
-			    		token = strtok(NULL, ",");
-			    		index++;
-			    	}
-			    	else{
-			    		//Reject Token
-			    		token = strtok(NULL, ",");
-			    	}
-			    	columnFileTokenIndex++;
-			    }
-			}
 
 			 printf("\nFuel Consumption = %f\n", VALUES.fuelConsumption);
 			 printf("Engine Speed = %f\n",VALUES.engineSpeed);
