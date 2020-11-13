@@ -65,8 +65,8 @@ sem_t breakFlag;
 
 
 //Fetching Global Variables
-float currentDataFetchedArray[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-int globalSecond = 0;
+
+
 
 struct arg_struct {
     sigset_t *sigst;
@@ -84,6 +84,8 @@ struct producer_struct {
 
 
 
+
+double arrayGlobal[94381][8];
 
 sigset_t sigst_Fuel;
 sigset_t sigst_Engine;
@@ -110,8 +112,8 @@ void initalizeProducers();
 
 int start_periodic_timer(void *arguments, int flag);
 
-
-
+float* returnRowCSV(int currentSecond);
+void createValueArray();
 
 
 
@@ -128,7 +130,7 @@ int main (int argc, char *argv[]) {
 	VALUES.accelerationSpeedLongitudinal = 0;
 	VALUES.indicationofbreakswitch = 0;
 
-
+	createValueArray();
 
 	sem_init(&structAccess, 0, 1);
 	sem_init(&valueMutex, 0, 1);
@@ -152,6 +154,8 @@ int main (int argc, char *argv[]) {
 
 	initalizeTimers();
 	initalizeProducers();
+
+
 
 	pthread_create(&timerHandlerThread, NULL, &signalHandler, NULL);
 
@@ -321,6 +325,47 @@ void initalizeTimers(){
 
 
 
+void createValueArray(){
+
+	int count = 0;
+	FILE* consumer = fopen("/home/DrivingKIA.csv", "r");
+	char consumer_Buffer[2048];
+	int columnFileID[8] = {1, 13, 18, 34, 35, 44, 45, 46};
+
+
+
+	//Read 1st line (title)
+	fgets(consumer_Buffer, 2048, consumer);
+
+
+	while(count < 10){
+	fgets(consumer_Buffer, 2048, consumer);
+	 int index = 0;
+	 char * token = strtok(consumer_Buffer, ",");
+				    int columnFileTokenIndex = 0;
+				    while(columnFileTokenIndex < columnFileID[7] && token != NULL){
+				    	if(columnFileTokenIndex == columnFileID[index] - 1){
+				    		arrayGlobal[count][index] = atof(token);
+				    		token = strtok(NULL, ",");
+				    		index++;
+				    	}
+				    	else{
+				    				    		//Reject Token
+				    				    		token = strtok(NULL, ",");
+				    				    	}
+				    				    	columnFileTokenIndex++;
+
+
+				    }
+
+
+				    count++;
+
+	}
+
+	fclose(consumer);
+}
+
 void* producerFunction(void* arguments)
 {
 	//Not sure if you wanted to keep "fprintf" or simply print a line
@@ -355,11 +400,8 @@ void* producerFunction(void* arguments)
 		accumulativeMilli = accumulativeMilli + (double)(current-start)/cycles;
 		currentSecond = 1000* ((accumulativeMilli)/1000000);
 
-		//implement fetching column
-		//fetchValues(consumer_Buffer);
-		if(globalSecond < currentSecond){
-			globalSecond = currentSecond;
-		}
+
+
 		//Not sure if you wanted to use specifically "fprintf" or simply printing a line
 		printf("current seconds(row) %i \n", currentSecond);
 		printf("ID %i \n", id);
@@ -377,35 +419,34 @@ void* producerFunction(void* arguments)
 		switch(id){
 
 			case 1:
-				VALUES.fuelConsumption = currentDataFetchedArray[0];
+				VALUES.fuelConsumption = arrayGlobal[currentSecond][0];
 			break;
 
 			case 2:
-				VALUES.engineSpeed = currentDataFetchedArray[1];
+				VALUES.engineSpeed = arrayGlobal[currentSecond][1];
 			break;
 
 			case 3:
-				VALUES.engineCoolantTemperature = currentDataFetchedArray[2];
+				VALUES.engineCoolantTemperature = arrayGlobal[currentSecond][2];
 			break;
 
 			case 4:
-				VALUES.currentGear = currentDataFetchedArray[3];
+				VALUES.currentGear = arrayGlobal[currentSecond][3];
 			break;
 
 			case 5:
-				VALUES.transmissionOilTemperature = currentDataFetchedArray[4];
+				VALUES.transmissionOilTemperature = arrayGlobal[currentSecond][4];
 			break;
 
 			case 6:
-				VALUES.vehicleSpeed = currentDataFetchedArray[5];
+				VALUES.vehicleSpeed = arrayGlobal[currentSecond][5];
 			break;
 
 			case 7:
-				VALUES.accelerationSpeedLongitudinal = currentDataFetchedArray[6];
+				VALUES.accelerationSpeedLongitudinal =arrayGlobal[currentSecond][6];
 			break;
 
 			case 8:
-				VALUES.indicationofbreakswitch = currentDataFetchedArray[7];
 			break;
 			}
 
@@ -429,49 +470,13 @@ void* producerFunction(void* arguments)
 void *consumerThread(void *empty)
 {
 
-	//Read the CSV file
-	int localSecond = globalSecond;
-	//Open file and Read line 1 (Title line)
-	FILE* consumer = fopen("/home/DrivingKIA.csv", "r");
-	char consumer_Buffer[1024];
-	int columnFileID[8] = {1, 13, 18, 34, 35, 44, 45, 46};
 
-	//Read 1st line (title)
-	fgets(consumer_Buffer, 1024, consumer);
 
-	//Execute first Read at second 0
-	fgets(consumer_Buffer, 1024, consumer);
 
 	for (;;) {
 
 		sem_wait(&updateInterupt);
 			sem_wait(&printMutex);
-
-			if(localSecond < globalSecond){
-				//Update Local Timer
-				localSecond = globalSecond;
-
-				//Fetch line
-			    fgets(consumer_Buffer, 1024, consumer);
-
-			    //Reject potential first ","
-			    char * token = strtok(consumer_Buffer, ",");
-
-			    int index = 0;
-			    int columnFileTokenIndex = 0;
-			    while(columnFileTokenIndex < columnFileID[7] && token != NULL){
-			    	if(columnFileTokenIndex == columnFileID[index] - 1){
-			    		currentDataFetchedArray[index] = atof(token);
-			    		token = strtok(NULL, ",");
-			    		index++;
-			    	}
-			    	else{
-			    		//Reject Token
-			    		token = strtok(NULL, ",");
-			    	}
-			    	columnFileTokenIndex++;
-			    }
-			}
 
 			 printf("\nFuel Consumption = %f\n", VALUES.fuelConsumption);
 			 printf("Engine Speed = %f\n",VALUES.engineSpeed);
