@@ -10,7 +10,6 @@
 #include <string.h>
 #include <stdio.h>
 
-
 #include <sys/neutrino.h>
 #include <pthread.h>
 #include <sched.h>
@@ -111,6 +110,7 @@ int start_periodic_timer(void *arguments, int flag);
 int main (int argc, char *argv[]) {
 	pthread_t consumerpThread, timerHandlerThread;
 
+	printf("main started");
 
 	fetchValues();
 
@@ -465,9 +465,23 @@ void* producerFunction(void* arguments)
 void *consumerThread(void *empty)
 {
 
+	//file init
+
+
+
 	for (;;) {
+
+
 		sem_wait(&updateInterupt);
+
+
 			sem_wait(&printMutex);
+
+			//make a lock file
+			FILE* lock = fopen("/home/lock.txt", "w");
+			fclose(lock);
+
+			FILE* out = fopen("/home/currentData.csv", "w");
 
 			 printf("CURRENT TIME: %i \n ", globalSecond);
 			 printf("Fuel Consumption = %lf\n", VALUES.fuelConsumption);
@@ -480,7 +494,35 @@ void *consumerThread(void *empty)
 			 printf("Indication of break switch = %lf\n", VALUES.indicationofbreakswitch);
 			 printf("\n");
 			 printf("\n");
-			 sem_post(&printMutex);
+
+			 fprintf(out, "%d", globalSecond);
+
+			 fputs(",", out);
+			 fprintf(out, "%f", VALUES.fuelConsumption);
+			 fputs(",", out);
+			 fprintf(out, "%f", VALUES.engineSpeed);
+			 fputs(",", out);
+			 fprintf(out, "%f", VALUES.engineCoolantTemperature);
+			 fputs(",", out);
+			 fprintf(out, "%f", VALUES.currentGear);
+			 fputs(",", out);
+			 fprintf(out, "%f", VALUES.transmissionOilTemperature);
+			 fputs(",", out);
+			 fprintf(out, "%f", VALUES.vehicleSpeed);
+			 fputs(",", out);
+			 fprintf(out, "%f", VALUES.accelerationSpeedLongitudinal);
+			 fputs(",", out);
+			 fprintf(out, "%f", VALUES.indicationofbreakswitch);
+
+
+			 fclose(out);
+			 remove("/home/lock.txt");
+
+
+
+
+		sem_post(&printMutex);
+
 
 	}
 
