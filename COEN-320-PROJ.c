@@ -1,6 +1,7 @@
-//First attempt at project implementation
-//COEN 320
-
+///COEN 320 Project
+//Ewan McNeil 40021787
+//Frank Sorschak 40003535
+//Kizito Kabanza40031567
 
 #include <sys/time.h>
 #include <signal.h>
@@ -9,31 +10,31 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
-
 #include <sys/neutrino.h>
 #include <pthread.h>
 #include <sched.h>
 #include <unistd.h>
-
-
-
 #include <semaphore.h>
 
 
 
-
+//time is defined in microseconds
 #define ONE_THOUSAND	1000
 #define ONE_MILLION		1000000
-/* offset and period are in microseconds. */
 #define OFFSET 1000000
 #define PERIOD 5000000
 
 
-sem_t valueMutex;
 
+
+//array that is used to store the CSV file
 float currentDataFetchedArray[600][8];
 int globalSecond = 0;
 
+
+
+//Shared structure acts as mailbox between
+//producers and consumers
 struct CAR_VALUES
 {
    double fuelConsumption;
@@ -48,26 +49,8 @@ struct CAR_VALUES
 }VALUES;
 
 
-sem_t updateInterupt;
-sem_t printMutex;
-sem_t structAccess;
 
-
-sem_t sigWait;
-
-sem_t fuelFlag;
-sem_t engineCoolFlag;
-sem_t engineSpeedFlag;
-sem_t currentGearFlag;
-sem_t oilTempFlag;
-sem_t speedFlag;
-sem_t accelerationFlag;
-sem_t breakFlag;
-
-
-
-
-
+//structures to pass to threaded functions
 struct arg_struct {
     sigset_t *sigst;
     uint64_t offset;
@@ -81,12 +64,35 @@ struct producer_struct {
     int id;
 };
 
-sigset_t sigst_Fuel;
-sigset_t sigst_Engine;
+
+//Semaphores needed for synchronization
+sem_t updateInterupt;
+sem_t printMutex;
+sem_t structAccess;
+sem_t valueMutex;
+sem_t sigWait;
+sem_t fuelFlag;
+sem_t engineCoolFlag;
+sem_t engineSpeedFlag;
+sem_t currentGearFlag;
+sem_t oilTempFlag;
+sem_t speedFlag;
+sem_t accelerationFlag;
+sem_t breakFlag;
+
+
+
+//signal set for each of the producers signals
 sigset_t sigst;
+
+
+//file stream to read in the CSV on start
 FILE* stream;
 
 
+
+
+//Function declarations
 void *fuelConsumption(void *);
 void *engineSpeed(void *);
 void *engineCoolantTemperature(void *);
@@ -95,7 +101,6 @@ void *transmissionOilTemperature(void *);
 void *vehicleSpeed(void *);
 void *accelerationSpeedLongitudinal(void *);
 void *indicationofbreakswitch(void *);
-
 void *consumerThread(void *);
 void *signalHandler(void *);
 void *producerFunction(void *arguments);
@@ -112,8 +117,11 @@ int main (int argc, char *argv[]) {
 
 	printf("main started");
 
+	//fetching values from csv
 	fetchValues();
 
+
+	//initalizating the values in the shared struct
 	VALUES.fuelConsumption = 0.0;
 	VALUES.engineSpeed = 0.0;
 	VALUES.engineCoolantTemperature =0.0;
@@ -123,32 +131,36 @@ int main (int argc, char *argv[]) {
 	VALUES.accelerationSpeedLongitudinal = 0.0;
 	VALUES.indicationofbreakswitch = 0.0;
 
+	//initalizting semaphores
 	sem_init(&structAccess, 0, 1);
 	sem_init(&valueMutex, 0, 1);
 	sem_init(&updateInterupt, 0, 0);
 	sem_init(&printMutex,0,1);
 	sem_init(&sigWait,0,1);
-
-
 	sem_init(&fuelFlag,0,1);
 	sem_init(&engineCoolFlag,0,1);
 	sem_init(& engineSpeedFlag,0,1);
 	sem_init(&currentGearFlag,0,1);
 	sem_init(&oilTempFlag,0,1);
-
 	sem_init(& speedFlag,0,1);
 	sem_init(&accelerationFlag,0,1);
 	sem_init(&breakFlag,0,1);
 
+	//initialize a signal set
+	sigemptyset(&sigst);
 
-	sigemptyset(&sigst); // initialize a signal set
 
+	//functions that call the initalizations of the
+	//signals in the signal set
+	//and the producer threads
 	initalizeTimers();
 	initalizeProducers();
 
-	pthread_create(&timerHandlerThread, NULL, &signalHandler, NULL);
 
-	printf("Creating the consumer producer threads.\n");
+
+
+	//threads for the timerhandler and the consumer
+	pthread_create(&timerHandlerThread, NULL, &signalHandler, NULL);
 	pthread_create(&consumerpThread,NULL, &consumerThread ,NULL);
 
 
@@ -168,18 +180,8 @@ int main (int argc, char *argv[]) {
 
 
 
-
-/*VARIBLES AND TIMES NEEDED
-Fuel Consumption 10 ms
-Engine Speed (RPM) 500 ms
-Engine Coolant Temperature 2 s
-Current Gear 100 ms
-Transmission Oil Temperature 5 s
-Vehicle Speed 100 ms
-Acceleration Speed Longitudinal 150 ms
-Indication of break switch 100 ms
-*/
-
+//Here the Eight producer threads are initialized with the
+//proper periods set
 void initalizeProducers(){
 
 	pthread_t th1, th2, th3,th4, th5, th6, th7, th8;
@@ -188,8 +190,6 @@ void initalizeProducers(){
 	fuelConsumptionStruct->flag = &fuelFlag;
 	fuelConsumptionStruct->id = 1;
 	pthread_create(&th1,NULL, &producerFunction ,(void *)fuelConsumptionStruct);
-
-
 
 
 	struct producer_struct *engineSpeed = (struct producer_struct *)malloc(sizeof(struct producer_struct));
@@ -238,6 +238,9 @@ void initalizeProducers(){
 	pthread_join(&th8,NULL);
 }
 
+
+//here the periodic signals for the producers are created
+//(may be poorly named they are periodi signals not nessicariy timers being created)
 void initalizeTimers(){
 		//timer for the engine
 
@@ -312,52 +315,6 @@ void initalizeTimers(){
 
 
 
-void fetchValues(){
-	//Read the CSV file
-	//Open file and Read line 1 (Title line)
-	FILE* consumer = fopen("/home/DrivingKIA.csv", "r");
-	char consumer_Buffer[1024];
-	int columnFileID[8] = {1, 13, 18, 34, 35, 44, 45, 46};
-
-	//Read 1st line (title)
-	fgets(consumer_Buffer, 1024, consumer);
-	fgets(consumer_Buffer, 1024, consumer);
-	int dataCounter = 0;
-	while (dataCounter < 600){
-		//Fetch line
-		fgets(consumer_Buffer, 1024, consumer);
-
-		//Reject potential first ","
-		char * token = strtok(consumer_Buffer, ",");
-
-		int index = 0;
-		int columnFileTokenIndex = 0;
-		while(columnFileTokenIndex < columnFileID[7] && token != NULL){
-			if(columnFileTokenIndex == columnFileID[index] - 1){
-				currentDataFetchedArray[dataCounter][index] = atof(token);
-				token = strtok(NULL, ",");
-				index++;
-			}
-			else{
-				//Reject Token
-				token = strtok(NULL, ",");
-			}
-			columnFileTokenIndex++;
-		}
-		dataCounter++;
-	}
-
-	fclose(consumer);
-
-	int arrayCount = 0;
-	while(arrayCount < 600){
-
-		printf("%i, %f, %f,%f,%f,%f, %f,%f,%f \n ", arrayCount,currentDataFetchedArray[arrayCount][0],currentDataFetchedArray[arrayCount][1],currentDataFetchedArray[arrayCount][2],currentDataFetchedArray[arrayCount][3],currentDataFetchedArray[arrayCount][4],currentDataFetchedArray[arrayCount][5],currentDataFetchedArray[arrayCount][6],currentDataFetchedArray[arrayCount][7]);
-		arrayCount++;
-	}
-}
-
-
 void* producerFunction(void* arguments)
 {
 
@@ -381,17 +338,20 @@ void* producerFunction(void* arguments)
 	}
 
 	for (;;) {
+		//wait for the signal handler to tell it when to produce
 		sem_wait(flag);
 
 
 		clock_gettime(CLOCK_MONOTONIC, &tv);
 		current = tv.tv_sec * ONE_THOUSAND + tv.tv_nsec / ONE_MILLION;
 
+		//Time logic in order to get the average value of the period
+		//this has been used from the logic seen in the tutorial
 		if (cycles > 0) {
 		accumulativeMilli = accumulativeMilli + (double)(current-start)/cycles;
 		currentSecond = 1000* ((accumulativeMilli)/1000000);
 
-		//fprintf(stderr, "current seconds(row) %i \n", currentSecond);
+
 		if(globalSecond < currentSecond){
 					globalSecond = currentSecond;
 				}
@@ -401,47 +361,51 @@ void* producerFunction(void* arguments)
 
 		}
 		if (cycles > 0) {
-			if(id ==3){
-			printf("ID: %i has Ave interval : %f millisecons\n ", id,(double)(current-start)/cycles);
-			}
+
+
+			printf("Producer: %i has the average interval of: %f milliseconds\n ", id,(double)(current-start)/cycles);
+
 		}
 
 		cycles++;
 		sem_wait(&structAccess);
 		sem_wait(&printMutex);
 
+
+		//based on the ID the producer gets the value from the input array and loads it into the shared
+		//Structure which serves as the mailbox for the producer and consumers.
 		switch(id){
 
 		case 1:
-						VALUES.fuelConsumption = currentDataFetchedArray[globalSecond-1][0];
+						VALUES.fuelConsumption = currentDataFetchedArray[globalSecond][0];
 					break;
 
 					case 2:
-						VALUES.engineSpeed = currentDataFetchedArray[globalSecond-1][1];
+						VALUES.engineSpeed = currentDataFetchedArray[globalSecond][1];
 					break;
 
 					case 3:
-						VALUES.engineCoolantTemperature = currentDataFetchedArray[globalSecond-1][2];
+						VALUES.engineCoolantTemperature = currentDataFetchedArray[globalSecond][2];
 					break;
 
 					case 4:
-						VALUES.currentGear = currentDataFetchedArray[globalSecond-1][3];
+						VALUES.currentGear = currentDataFetchedArray[globalSecond][3];
 					break;
 
 					case 5:
-						VALUES.transmissionOilTemperature = currentDataFetchedArray[globalSecond-1][4];
+						VALUES.transmissionOilTemperature = currentDataFetchedArray[globalSecond][4];
 					break;
 
 					case 6:
-						VALUES.vehicleSpeed = currentDataFetchedArray[globalSecond-1][5];
+						VALUES.vehicleSpeed = currentDataFetchedArray[globalSecond][5];
 					break;
 
 					case 7:
-						VALUES.accelerationSpeedLongitudinal = currentDataFetchedArray[globalSecond-1][6];
+						VALUES.accelerationSpeedLongitudinal = currentDataFetchedArray[globalSecond][6];
 					break;
 
 					case 8:
-						VALUES.indicationofbreakswitch = currentDataFetchedArray[globalSecond-1][7];
+						VALUES.indicationofbreakswitch = currentDataFetchedArray[globalSecond][7];
 					break;
 			}
 
@@ -471,10 +435,8 @@ void *consumerThread(void *empty)
 
 	for (;;) {
 
-
+		//wait call for the signal from a producer that has just produced
 		sem_wait(&updateInterupt);
-
-
 			sem_wait(&printMutex);
 
 			//make a lock file
@@ -483,6 +445,8 @@ void *consumerThread(void *empty)
 
 			FILE* out = fopen("/home/currentData.csv", "w");
 
+
+			 //outputing all the values from the producer consumer "mailbox"
 			 printf("CURRENT TIME: %i \n ", globalSecond);
 			 printf("Fuel Consumption = %lf\n", VALUES.fuelConsumption);
 			 printf("Engine Speed = %lf\n",VALUES.engineSpeed);
@@ -580,27 +544,10 @@ void *signalHandler(void *empty){
 
 
 
-const char* getfield(char* line, int num)
-{
-    const char* tok;
-
-    for (tok = strtok(line, ";");
-            tok && *tok;
-            tok = strtok(NULL, ";\n"))
-    {
-        if (!--num)
-            return tok;
-    }
-    return NULL;
-}
-
-
-
-
-
-
+//This is an edited version of the start_periodic_timer seen in the tutorial
+//The changes come in with extra parameters being passed in.
 int start_periodic_timer(void *arguments, int flag){
-	printf("Entered start\n");
+	//taking in the arguments passed through a structure that was added into the function
 	struct arg_struct *args = (struct arg_struct *)arguments;
 	sigset_t *sigst = args -> sigst;
 	uint64_t offset = args -> offset;
@@ -616,40 +563,90 @@ int start_periodic_timer(void *arguments, int flag){
 	int res;
 	printf("ARG PERIOD.\n");
 
-
-	/* set timer parameters */
-	timer_spec.it_value.tv_sec = offset / ONE_MILLION;			///starting time
+	//offsets and periods from the input structure are passed in
+	timer_spec.it_value.tv_sec = offset / ONE_MILLION;
 	timer_spec.it_value.tv_nsec = (offset % ONE_MILLION) * ONE_THOUSAND;
 	timer_spec.it_interval.tv_sec = period / ONE_MILLION;
-	timer_spec.it_interval.tv_nsec = (period % ONE_MILLION) * ONE_THOUSAND;		//period
+	timer_spec.it_interval.tv_nsec = (period % ONE_MILLION) * ONE_THOUSAND;
 
 
-	sigaddset(sigst, signal); // add SIGALRM to the signal set
-	sigprocmask(SIG_BLOCK, sigst, NULL); //block the signal
-	printf("initalized timer.\n");
-	/* set the signal event a timer expiration */
+
+
+	sigaddset(sigst, signal);
+	sigprocmask(SIG_BLOCK, sigst, NULL);
+	printf("Initialized timer.\n");
 	memset(&sigev, 0, sizeof(struct sigevent));
 	sigev.sigev_notify = SIGEV_SIGNAL;
 	sigev.sigev_signo = signal;
-	union sigval ewanVal;
-	ewanVal.sival_int = flag;
-	sigev.sigev_value = ewanVal;
 
-	/* create timer */
+
+
+	//This additional Identifier is crucial for the program in order to
+	//pass the ID flag that is later used in the signalHandler
+	//to identify the signal via the sigwaitinfo() call
+	union sigval addionalIdentifier;
+	addionalIdentifie.sival_int = flag;
+	sigev.sigev_value = addionalIdentifie;
+
+
+	//Timer creation and activation
 	res = timer_create(CLOCK_MONOTONIC, &sigev, &timer);
-
 	if (res < 0) {
 		perror("Timer Create");
 		exit(-1);
 	}
-
 	timerCount++;
-	/* activate the timer */
 	printf("Activate.\n");
 	return timer_settime(timer, 0, &timer_spec, NULL);
 }
 
 
+
+
+void fetchValues(){
+	//Read the CSV file
+	//Open file and Read line 1 (Title line)
+	FILE* consumer = fopen("/home/DrivingKIA.csv", "r");
+	char consumer_Buffer[1024];
+	int columnFileID[8] = {1, 13, 18, 34, 35, 44, 45, 46};
+
+	//Read 1st line (title)
+	fgets(consumer_Buffer, 1024, consumer);
+	fgets(consumer_Buffer, 1024, consumer);
+	int dataCounter = 0;
+	while (dataCounter < 600){
+		//Fetch line
+		fgets(consumer_Buffer, 1024, consumer);
+
+		//Reject potential first ","
+		char * token = strtok(consumer_Buffer, ",");
+
+		int index = 0;
+		int columnFileTokenIndex = 0;
+		while(columnFileTokenIndex < columnFileID[7] && token != NULL){
+			if(columnFileTokenIndex == columnFileID[index] - 1){
+				currentDataFetchedArray[dataCounter][index] = atof(token);
+				token = strtok(NULL, ",");
+				index++;
+			}
+			else{
+				//Reject Token
+				token = strtok(NULL, ",");
+			}
+			columnFileTokenIndex++;
+		}
+		dataCounter++;
+	}
+
+	fclose(consumer);
+
+	int arrayCount = 0;
+	while(arrayCount < 600){
+
+		printf("%i, %f, %f,%f,%f,%f, %f,%f,%f \n ", arrayCount,currentDataFetchedArray[arrayCount][0],currentDataFetchedArray[arrayCount][1],currentDataFetchedArray[arrayCount][2],currentDataFetchedArray[arrayCount][3],currentDataFetchedArray[arrayCount][4],currentDataFetchedArray[arrayCount][5],currentDataFetchedArray[arrayCount][6],currentDataFetchedArray[arrayCount][7]);
+		arrayCount++;
+	}
+}
 
 
 
