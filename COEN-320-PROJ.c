@@ -483,18 +483,6 @@ void *consumerThread(void *empty)
 
 			FILE* out = fopen("/home/currentData.csv", "w");
 
-			 printf("CURRENT TIME: %i \n ", globalSecond);
-			 printf("Fuel Consumption = %lf\n", VALUES.fuelConsumption);
-			 printf("Engine Speed = %lf\n",VALUES.engineSpeed);
-			 printf("engineCoolantTemperature = %lf\n",VALUES.engineCoolantTemperature);
-			 printf("Current Gear =  %lf\n", VALUES.currentGear);
-			 printf("transmissionOilTemperature =  %lf\n", VALUES.transmissionOilTemperature);
-			 printf("Vehicle Speed = %lf\n",VALUES.vehicleSpeed);
-			 printf("Acceleration Speed Longitudinal = %lf\n", VALUES.accelerationSpeedLongitudinal);
-			 printf("Indication of break switch = %lf\n", VALUES.indicationofbreakswitch);
-			 printf("\n");
-			 printf("\n");
-
 			 fprintf(out, "%d", globalSecond);
 
 			 fputs(",", out);
@@ -513,10 +501,25 @@ void *consumerThread(void *empty)
 			 fprintf(out, "%f", VALUES.accelerationSpeedLongitudinal);
 			 fputs(",", out);
 			 fprintf(out, "%f", VALUES.indicationofbreakswitch);
-
-
 			 fclose(out);
 			 remove("/home/lock.txt");
+
+			 printf("CURRENT TIME: %i \n ", globalSecond);
+			 printf("Fuel Consumption = %lf\n", VALUES.fuelConsumption);
+			 printf("Engine Speed = %lf\n",VALUES.engineSpeed);
+			 printf("engineCoolantTemperature = %lf\n",VALUES.engineCoolantTemperature);
+			 printf("Current Gear =  %lf\n", VALUES.currentGear);
+			 printf("transmissionOilTemperature =  %lf\n", VALUES.transmissionOilTemperature);
+			 printf("Vehicle Speed = %lf\n",VALUES.vehicleSpeed);
+			 printf("Acceleration Speed Longitudinal = %lf\n", VALUES.accelerationSpeedLongitudinal);
+			 printf("Indication of break switch = %lf\n", VALUES.indicationofbreakswitch);
+			 printf("\n");
+			 printf("\n");
+
+
+
+
+
 
 
 
