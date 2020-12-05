@@ -7,7 +7,7 @@ The objective of the project is to build a real-time automobile monitoring syste
 
 ## How to Get Started
 
-### Step 1: Uploading the Dataset Into the VW
+### Step 1: Uploading the Dataset Into the VM
 
       1. From the main menu, select Window -> Show View -> Other
       2. Select QNX Targets, then double-click Target File System Navigator
