@@ -13,8 +13,18 @@ The objective of the project is to build a real-time automobile monitoring syste
       2. Select QNX Targets, then double-click Target File System Navigator
       3. In the Target File System Navigator, select the "vm-target" (the program's target)
       
-            ![](screenshots/Step1/First.jpg)
-      4. Paste the CSV file into the /Home directory
+<p align="center">
+  <img width="600" height="300" src="https://github.com/EwanMcNeil/COEN-320-PROJ/blob/master/screenshots/Step1/Frist.JPG">
+</p>
 
+      4. Paste the CSV file into the /home directory
+      
+<p align="center">
+  <img width="600" height="300" src="https://github.com/EwanMcNeil/COEN-320-PROJ/blob/master/screenshots/Step1/Second.png">
+</p>
 
+### Step 2: Setting Up the GUI (For Frank)
 
+      1. ...
+      2. ...
+      3. ...
