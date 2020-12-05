@@ -12,6 +12,8 @@ The objective of the project is to build a real-time automobile monitoring syste
       1. From the main menu, select Window -> Show View -> Other
       2. Select QNX Targets, then double-click Target File System Navigator
       3. In the Target File System Navigator, select the "vm-target" (the program's target)
+      
+            ![](screenshots/Step1/First.jpg)
       4. Paste the CSV file into the /Home directory
 
 
