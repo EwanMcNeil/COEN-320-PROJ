@@ -32,8 +32,11 @@
 
 ### Step 4: Running the Projects
 1.Create launch configurations for both projects that target the aforementioned QNX VM you have started.
+
 2. Using "Run" (not Debug) launch the 320_gui project. You should see the GUI appear in the QNX VM.
+
 3. Run the COEN_320_PROJ, it will begin to output results to the console.
+
 4. On the GUI, click "run" to have these results visualized
 
       
