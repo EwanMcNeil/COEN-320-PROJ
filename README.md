@@ -2,11 +2,12 @@
 
 ## How to Get Started
 
-## Step 1: Importing the Projects
+## STEP 1: Importing the Projects
 1. In the Momentics IDE select File -> Import -> Existing Projects
 2. Select the Project Source folder from the zip file and import both the 320_gui project and the COEN_320_PROJ project.
 3. Do NOT build either project.
-## STEP 2: RUNNING THE VM WITH PHOTON
+
+## STEP 2: Running the VM with Photon
 1. Start a local QNX VM.
 2. When prompted, enter "root" as the username
 3. When logged enter the command "ph" to start the Photon Desktop Environment.
@@ -30,7 +31,7 @@
   <img width="600" height="300" src="https://github.com/EwanMcNeil/COEN-320-PROJ/blob/master/screenshots/Step1/Second.png">
 </p>
 
-### Step 4: Running the Projects
+### STEP 4: Running the Projects
 1. Create launch configurations for both projects that target the aforementioned QNX VM you have started.
 
 2. Using "Run" (not Debug) launch the 320_gui project. You should see the GUI appear in the QNX VM.
