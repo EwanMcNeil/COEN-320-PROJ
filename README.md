@@ -31,7 +31,7 @@
 </p>
 
 ### Step 4: Running the Projects
-1.Create launch configurations for both projects that target the aforementioned QNX VM you have started.
+1. Create launch configurations for both projects that target the aforementioned QNX VM you have started.
 
 2. Using "Run" (not Debug) launch the 320_gui project. You should see the GUI appear in the QNX VM.
 
